@@ -67,67 +67,117 @@ def assemble(contigs, redundant=0.6, min_score_frac=0.25, candidates=400,
     return chosen
 
 
-def _best_ungapped(contig, truth):
-    """(identity, offset, orientation) of the best ungapped placement of
-    `contig` on `truth`."""
-    best = (-1.0, 0, contig)
-    for oriented in (contig, contig[::-1]):
-        length = len(oriented)
-        for off in range(-length + 1, len(truth)):
-            pairs = [(oriented[index], truth[off + index])
-                     for index in range(length)
-                     if 0 <= off + index < len(truth)]
-            if len(pairs) < length * 0.8:
-                continue
-            ident = sum(found == expected
-                        for found, expected in pairs) / length
-            if ident > best[0]:
-                best = (ident, off, oriented)
-    return best
+_EXACT, _BLOCK, _MISMATCH, _OVERHANG = range(4)
+_BLOCK_WIDTHS = [(found, expected) for found in (1, 2, 3)
+                 for expected in (1, 2, 3)]
 
 
-def score(contigs, truth, table=MASSES, min_identity=0.7):
+def _prefix_masses(seq, table):
+    """Cumulative residue masses: element k is the mass of seq[:k]."""
+    sums = [0.0]
+    for residue in seq:
+        sums.append(sums[-1] + table[residue])
+    return sums
+
+
+def _align(contig, truth, table, tolerance):
+    """Best placement of `contig` on `truth`, allowing mass-equivalent blocks.
+
+    The placement has no gaps. A contig residue either matches its truth
+    residue (+1), mismatches it (-1), or belongs to a block of 1 to 3 contig
+    residues standing for 1 to 3 different truth residues of the same total
+    mass. That is how Q against GA, N against GG, or a reordering looks, and
+    it is the only way the two sides can differ in length. A block earns 0.9
+    per residue the two sides have in common and loses 1 per residue of
+    length difference. A contig may run past either end of the truth (-1 per
+    residue).
+
+    General gaps are left out on purpose. With them, a short contig can be
+    threaded through a 150-residue protein almost anywhere: scored against
+    shuffled myoglobin, contigs from a real run reached 17% recall by chance,
+    more than against myoglobin itself.
+
+    Returns (score, steps), each step (kind, contig_start, contig_end,
+    truth_start, truth_end).
+    """
+    rows, cols = len(contig) + 1, len(truth) + 1
+    contig_mass = _prefix_masses(contig, table)
+    truth_mass = _prefix_masses(truth, table)
+    worst = float("-inf")
+    best = [[worst] * cols for _ in range(rows)]
+    came = [[None] * cols for _ in range(rows)]
+    best[0] = [0.0] * cols
+    for row in range(1, rows):
+        for col in range(cols):
+            options = []
+            if col and contig[row - 1] == truth[col - 1]:
+                options.append((best[row - 1][col - 1] + 1.0,
+                                (_EXACT, 1, 1)))
+            for width, span in _BLOCK_WIDTHS:
+                if width > row or span > col:
+                    continue
+                found = contig[row - width:row]
+                expected = truth[col - span:col]
+                if found == expected:
+                    continue
+                gap = abs((contig_mass[row] - contig_mass[row - width])
+                          - (truth_mass[col] - truth_mass[col - span]))
+                if gap < tolerance:
+                    value = 0.9 * min(width, span) - abs(width - span)
+                    options.append((best[row - width][col - span] + value,
+                                    (_BLOCK, width, span)))
+            if col:
+                options.append((best[row - 1][col - 1] - 1.0,
+                                (_MISMATCH, 1, 1)))
+            if col in (0, cols - 1):
+                options.append((best[row - 1][col] - 1.0,
+                                (_OVERHANG, 1, 0)))
+            for value, step in options:
+                if value > best[row][col]:
+                    best[row][col], came[row][col] = value, step
+    end = 0
+    for col in range(1, cols):
+        if best[-1][col] > best[-1][end]:
+            end = col
+    steps, row, col = [], rows - 1, end
+    while row > 0:
+        kind, width, span = came[row][col]
+        steps.append((kind, row - width, row, col - span, col))
+        row, col = row - width, col - span
+    return best[-1][end], steps[::-1]
+
+
+def score(contigs, truth, table=MASSES, min_identity=0.7, tolerance=0.02):
     """Residue-level recall and precision of a set of contigs against the true
     sequence.
 
-    Each contig is placed where it matches best. Its residues that equal the
-    truth are CORRECT; a mismatching stretch of up to three residues whose
-    total mass equals the truth's (0.02 Da) is MASS-EQUIVALENT (a reordering,
-    or Q for GA); the rest are WRONG. A contig matching below `min_identity`
-    everywhere counts as wrong throughout.
+    Each contig is placed where it fits best, in whichever orientation fits
+    better (see `_align`). Its residues identical to the truth are CORRECT; a
+    block of up to three residues standing for up to three different truth
+    residues of the same total mass (within `tolerance` Da) is
+    MASS-EQUIVALENT: a reordering, GA for Q, GG for N; the rest are WRONG. A
+    contig with fewer than `min_identity` of its residues CORRECT counts as
+    wrong throughout: mass-equivalent residues do not count towards it, as a
+    block can be fitted to too many places.
     """
     covered, eq_covered = set(), set()
     correct = equivalent = wrong = 0
     for seq, _ in contigs:
-        ident, off, oriented = _best_ungapped(seq, truth)
-        if ident < min_identity:
+        forward = _align(seq, truth, table, tolerance)
+        backward = _align(seq[::-1], truth, table, tolerance)
+        _, steps = forward if forward[0] >= backward[0] else backward
+        exact = [step for step in steps if step[0] == _EXACT]
+        blocks = [step for step in steps if step[0] == _BLOCK]
+        n_equivalent = sum(step[2] - step[1] for step in blocks)
+        if len(exact) / len(seq) < min_identity:
             wrong += len(seq)
             continue
-        index = 0
-        while index < len(oriented):
-            position = off + index
-            if (0 <= position < len(truth)
-                    and oriented[index] == truth[position]):
-                correct += 1
-                covered.add(position)
-                index += 1
-                continue
-            # try to close a short mismatch by mass
-            for width in (1, 2, 3):
-                found = oriented[index:index + width]
-                expected = (truth[max(position, 0):position + width]
-                            if position >= 0 else "")
-                if (len(found) == width and len(expected) == width
-                        and abs(sum(table[residue] for residue in found)
-                                - sum(table[residue]
-                                      for residue in expected)) < 0.02):
-                    equivalent += width
-                    eq_covered.update(range(position, position + width))
-                    index += width
-                    break
-            else:
-                wrong += 1
-                index += 1
+        correct += len(exact)
+        equivalent += n_equivalent
+        wrong += len(seq) - len(exact) - n_equivalent
+        covered.update(step[3] for step in exact)
+        for step in blocks:
+            eq_covered.update(range(step[3], step[4]))
     total = correct + equivalent + wrong
     return {
         "recall_exact": len(covered) / len(truth),
