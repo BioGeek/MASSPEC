@@ -112,16 +112,26 @@ below). Insulin has no tryptophan, so the slip never showed.
 """)
 
 add_code(r"""
+# Fig. 2's rows, in its order. It also lists Ile (I) and Leu (L), with the
+# same mass as J; the program itself only uses J.
+ACIDS = {
+    "A": "Ala", "C": "Cys", "E": "Glu", "F": "Phe", "G": "Gly", "D": "Asp",
+    "H": "His", "J": "Lux (Ile or Leu)", "K": "Lys", "M": "Met",
+    "N": "Asn", "O": "Tyr", "P": "Pro", "Q": "Gln", "R": "Arg", "S": "Ser",
+    "T": "Thr", "V": "Val", "W": "Trp",
+}
 modern = {"J": MASSES["L"], "O": MASSES["Y"], **MASSES}
 print(
-    f"{'':4}{'paper (free)':>14}{'present-day (free)':>20}"
-    f"{'difference':>12}"
+    f"{'Acid':<18}{'Code':<6}{'Mass':>11}{'Present-Day':>13}"
+    f"{'Difference':>12}"
 )
-for amino_acid in sorted(_FREE_1970):
-    now = modern[amino_acid] + H2O  # free amino acid = residue + water
-    printed = _FREE_1970[amino_acid]
+for code, acid in ACIDS.items():
+    now = modern[code] + H2O  # free amino acid = residue + water
+    printed = _FREE_1970[code]
     gap = difference(printed, now)
-    print(f"{amino_acid:4}{printed:14.5f}{now:20.5f}{gap:12.5f}")
+    print(f"{acid:<18}{code:<6}{printed:11.5f}{now:13.5f}{gap:12.5f}")
+water_gap = difference(H2O_1970, H2O)
+print(f"{'H2O':<24}{H2O_1970:11.5f}{H2O:13.5f}{water_gap:12.5f}")
 """)
 
 add_markdown(r"""
@@ -135,9 +145,19 @@ here, J elsewhere).
 """)
 
 add_code(r"""
+def as_printed(residues):
+    # a composition as Figs. 1, 3 and 4 print it: L for J, letters spaced
+    return " ".join(residues.replace("J", "L"))
+
+
+print("Structure of Initial Polymer, Bovine Insulin\n")
+print("A chain - " + " ".join(INSULIN_A))
+print("B chain - " + " ".join(INSULIN_B))
+print("\nFragments from B Chain\n")
+print(f"{'Fragments of Length 7':>21}   Amino Acid Composition")
 seven = [INSULIN_B[start:start + 7] for start in range(len(INSULIN_B) - 6)]
 for number, fragment in enumerate(seven, 1):
-    print(f"{number:3}  {composition(fragment).replace('J', 'L')}")
+    print(f"{number:21}   {as_printed(composition(fragment))}")
 """)
 
 add_markdown(r"""
@@ -157,17 +177,33 @@ paper_fig3 = {
     "JV": 230.16290, "NQ": 260.11193, "NV": 231.12178, "OT": 282.12144,
     "PT": 216.11089,
 }
-dipeptides = sorted({
-    composition(INSULIN_B[start:start + 2])
-    for start in range(len(INSULIN_B) - 1)
-})
-print(f"{len(dipeptides)} distinct dipeptide compositions in B (paper: 25)\n")
-print(f"{'':4}{'here':>12}{'paper':>12}{'diff':>10}")
-for dipeptide in dipeptides:
+
+
+def paper_order(residues):
+    # Fig. 3 sorts its rows as printed, with L for J: AE, AK, AL, CG...
+    return residues.replace("J", "L")
+
+
+dipeptides = sorted(
+    {
+        composition(INSULIN_B[start:start + 2])
+        for start in range(len(INSULIN_B) - 1)
+    },
+    key=paper_order,
+)
+print("Peptides Two Amino Acids Long\n")
+print(
+    f"{'':3}{'Mass':>12}{'Paper':>12}{'Difference':>12}"
+    "   Amino Acid Composition of Peptide"
+)
+for number, dipeptide in enumerate(dipeptides, 1):
     here = peptide_mass(dipeptide)
     printed = paper_fig3[dipeptide]
     gap = difference(here, printed)
-    print(f"{dipeptide:4}{here:12.5f}{printed:12.5f}{gap:10.5f}")
+    print(
+        f"{number:3}{here:12.5f}{printed:12.5f}{gap:12.5f}"
+        f"   {as_printed(dipeptide)}"
+    )
 """)
 
 add_code(r"""
@@ -178,12 +214,17 @@ paper_fig4 = [
     977.40606, 975.44454, 1015.47582, 1014.52817, 929.46422,
 ]
 eight = [INSULIN_B[start:start + 8] for start in range(len(INSULIN_B) - 7)]
-print(f"{'':3}{'composition':>14}{'here':>12}{'paper':>12}{'diff':>10}")
+print("Peptides Eight Amino Acids Long\n")
+print(
+    f"{'':3}{'Mass':>12}{'Paper':>12}{'Difference':>12}"
+    "   Amino Acid Composition of Peptide"
+)
 for number, (fragment, printed) in enumerate(zip(eight, paper_fig4), 1):
     here = peptide_mass(fragment)
+    gap = difference(here, printed)
     print(
-        f"{number:3}{composition(fragment):>14}{here:12.5f}"
-        f"{printed:12.5f}{difference(here, printed):10.5f}"
+        f"{number:3}{here:12.5f}{printed:12.5f}{gap:12.5f}"
+        f"   {as_printed(composition(fragment))}"
     )
 """)
 
@@ -227,10 +268,17 @@ for length in range(1, 5):
             "".join(sorted(residues, key=lightest_first))
         )
 window = sorted(value for value in table if 506.24 <= value <= 507.27)
+print(
+    f"{'Mass':>11}   {'Peptide Composition':<22}"
+    "Increase in Mass from Preceding Entry"
+)
 previous = None
 for group_mass in window:
+    first, *others = table[group_mass]
     step = f"{group_mass - previous:.5f}" if previous else ""
-    print(f"{group_mass:11.5f} {step:>9}   {' '.join(table[group_mass])}")
+    print(f"{group_mass:11.5f}   {first:<22}{step:>9}")
+    for other in others:
+        print(f"{'':11}   {other}")
     previous = group_mass
 anfr_tjhh = difference(peptide_mass("ANFR"), peptide_mass("TJHH"))
 jnnf_vnqf = difference(peptide_mass("JNNF"), peptide_mass("VNQF"))
@@ -286,15 +334,19 @@ true_compositions = {
     }
     for length in range(1, 5)
 }
-print(f"{'length':>6}{'compositions':>14}{'true ones':>11}{'paper':>8}")
+print("Insulin of Beef 'A' and 'B'   Limits -.02 to +.02 a.m.u.\n")
+for length in (1, 2, 3):
+    listed = ["".join(residues) for residues in sorted(compositions[length])]
+    print(f"There Are {len(listed)} Fragments of Length {length}")
+    for row in range(0, len(listed), 10):
+        chunk = listed[row:row + 10]
+        print("   " + " ".join(f"{entry:<5}" for entry in chunk).rstrip())
+print(f"\n{'Length':>6}{'Fragments':>11}{'True Ones':>11}{'Paper':>7}")
 for length, paper in zip(range(1, 5), (16, 66, 197, None)):
     print(
-        f"{length:6}{len(compositions[length]):14}"
-        f"{len(true_compositions[length]):11}{paper if paper else '':>8}"
+        f"{length:6}{len(compositions[length]):11}"
+        f"{len(true_compositions[length]):11}{paper if paper else '':>7}"
     )
-print("\nlength 2:", " ".join(
-    "".join(residues) for residues in sorted(compositions[2])
-))
 """)
 
 add_markdown(r"""
@@ -332,6 +384,8 @@ and its reverse are one entry: "AEJ means both AEJ and JEA".
 
 add_code(r"""
 sequences = cq(pruned)
+print("Insulin of Beef 'A' and 'B'   Limits -.02 to +.02\n=CQ=")
+print("Completely Sequenced Fragments Which May Be Present\n")
 for length in range(1, 5):
     print(f"length {length}: {len(sequences[length])} sequences")
 print(f"\nsequenced tripeptides: {len(sequences[3])} (paper: 172)")
@@ -363,25 +417,38 @@ def accept(sequence):
     return sequence_mass > 1000.0 or observed.contains(sequence_mass)
 
 
-sizes, finished = {}, []
+sizes, finished = {}, {}
 current, length = sequences[4], 5
 while current:
     current, done = overlap_step(current, length, accept)
     sizes[length] = len(current)
-    finished += [(length - 1, piece) for piece in done if length - 1 >= 15]
+    finished[length - 1] = sorted(done)
     length += 1
 
-paper = {7: 92, 9: 37, 10: 33, 21: 11, 22: 9, 23: 8, 29: 2, 30: 1}
-print(f"{'length':>6}{'here':>7}{'paper':>7}")
+# The list sizes Figs. 9 to 11 print, by fragment length.
+paper = {
+    6: 241, 7: 92, 8: 49, 9: 37, 10: 33, 21: 11, 22: 9, 23: 8, 29: 2, 30: 1,
+}
+print("Insulin 'A' and 'B', Bovine")
+print("Maximum Mass Measured = 1000.0\n")
 for length in sorted(sizes):
-    if length in paper or length in (5, 6, 8, 31):
-        print(f"{length:6}{sizes[length]:7}{paper.get(length, ''):>7}")
-print()
-for piece_length, piece in finished:
-    print(
-        f"pieces {piece_length} long which do not overlap any other piece: "
-        f"{piece}"
-    )
+    if sizes[length] == 0:
+        continue
+    noun = "Fragment" if sizes[length] == 1 else "Fragments"
+    line = f"This Results in a List of {sizes[length]} {noun} of Size {length}"
+    if length in paper:
+        line += f"   (paper: {paper[length]})"
+    print(line)
+    pieces = finished.get(length, [])
+    # The last list is the answer, printed below as the Final List.
+    if pieces and 15 <= length < max(sizes) - 1:
+        print(f"   Pieces {length} Long Which Do Not Overlap Any Other Pieces")
+        for piece in pieces:
+            print(f"      {piece}")
+last = max(length for length in sizes if sizes[length])
+print("\nFinal List")
+for piece in finished[last]:
+    print(f"   {piece}")
 """)
 
 add_markdown(r"""
@@ -393,12 +460,12 @@ The program continues until one sequence 30 long remains: the B chain, here
 written backwards.
 
 From length 10 on, every list size the paper prints matches. The short lengths
-do not: the paper keeps **241** hexapeptides (Fig. 9), 92 heptapeptides and 37
-nonapeptides, against 136, 62 and 35 here. The gap closes as N grows, and the
-lists before (Figs. 6-8) and the answer agree exactly, so the original
-evidently kept more candidates at those lengths, by a rule the paper does not
-describe closely enough to reproduce. (Skipping the mass check at length 6
-alone gives 245 hexapeptides.)
+do not: the paper keeps **241** hexapeptides (Fig. 9), 92 heptapeptides, 49
+octapeptides and 37 nonapeptides (Fig. 10), against 136, 62, 40 and 35 here.
+The gap closes as N grows, and the lists before (Figs. 6-8) and the answer
+agree exactly, so the original evidently kept more candidates at those lengths,
+by a rule the paper does not describe closely enough to reproduce. (Skipping
+the mass check at length 6 alone gives 245 hexapeptides.)
 """)
 
 add_code(r"""
@@ -418,15 +485,6 @@ axes.scatter(
     zorder=3,
     s=36,
     label="printed in the paper",
-)
-axes.scatter(
-    [6],
-    [241],
-    color="#dc2626",
-    marker="x",
-    s=50,
-    zorder=3,
-    label="Fig. 9: 241 hexapeptides",
 )
 axes.axhline(0, color="#94a3b8", lw=0.8)
 axes.set_xlabel("fragment length N")
