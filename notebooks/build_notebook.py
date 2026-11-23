@@ -1,10 +1,10 @@
 """Write and execute notebooks/masspec_1970.ipynb.
 
-    uv sync --extra real --group notebook
+    uv sync --group notebook
     uv run python notebooks/build_notebook.py
 
-The last section reads the real run in data/raw/ when it is there (see
-scripts/real_pxd071026.py); without it, that cell says so and the rest runs.
+The last section reads the real run from the copy packaged with the code
+(masspec.example), so the whole notebook runs anywhere, Colab included.
 
 The notebook's cells live here, as plain strings, so a change to the
 walkthrough is a reviewable diff of this file rather than of notebook JSON.
@@ -949,32 +949,26 @@ PRIDE project
 [PXD071026](https://www.ebi.ac.uk/pride/archive/projects/PXD071026) is an
 HDX-MS study of sperm whale myoglobin (154 residues) on an LTQ Orbitrap: one
 small protein, pepsin, one run. Its undeuterated run is a present-day version
-of the experiment the paper proposed. The raw file is not in this repository;
-`scripts/real_pxd071026.py` says how to fetch and convert it, and the cell
-below uses it when it is there.
+of the experiment the paper proposed. The data are CC0.
 
-Three steps: `masses_from_mzml()` collapses the run's MS1 scans into one list
-of neutral masses (MASSPEC's "single spectrum"); `calibrate()` removes the
-instrument's systematic mass error using pepsin's own autolysis fragments,
-which are in every pepsin digest and never in the protein being sequenced;
-and the reconstruction runs on the result.
+The raw file is 148 MB, so the package carries what the method needs from it:
+`masses_from_mzml()` collapsed the run's MS1 scans into one list of 5440
+neutral masses (MASSPEC's "single spectrum"), and that list ships as
+`masspec.example.pxd071026()`, with the sequences of myoglobin and of pepsin.
+`scripts/real_pxd071026.py` starts from the raw file instead, and
+`scripts/package_pxd071026.py` rebuilds the packaged list from it.
+
+Two steps remain: `calibrate()` removes the instrument's systematic mass error
+using pepsin's own autolysis fragments, which are in every pepsin digest and
+never in the protein being sequenced; and the reconstruction runs on the
+result.
 """)
 
 add_code(r"""
 import bisect
-from pathlib import Path
 
-from masspec.features import calibrate, masses_from_mzml
-
-RAW = Path("..") / "data" / "raw"
-
-
-def read_fasta(path):
-    lines = path.read_text().splitlines()
-    sequence = "".join(
-        line.strip() for line in lines if not line.startswith(">")
-    )
-    return sequence.upper().replace("I", "L")
+from masspec.example import pxd071026
+from masspec.features import calibrate
 
 
 def fragment_masses(protein, max_len=60):
@@ -1000,35 +994,28 @@ def matching(masses, protein, ppm=2.0):
     return hits
 
 
-run_file = RAW / "Mn_0s_1.mzML"
-if not run_file.exists():
-    print(f"{run_file} is not here: see scripts/real_pxd071026.py.")
-else:
-    myoglobin = read_fasta(RAW / "rcsb_pdb_6Z4T.fasta")
-    pepsin = read_fasta(RAW / "pepsin_A_mature.fasta")
-    features = masses_from_mzml(run_file, ppm=10, min_scans=2)
-    measured = [feature[0] for feature in features]
-    offset, _, _ = calibrate(measured, pepsin)
-    calibrated = [value / (1 + offset * 1e-6) for value in measured]
-    print(f"{len(measured)} masses; systematic error, from pepsin's "
-          f"autolysis fragments: {offset:+.2f} ppm")
-    from_myoglobin = matching(calibrated, myoglobin)
-    by_chance = matching([value + 0.3 for value in calibrated], myoglobin)
-    from_pepsin = matching(calibrated, pepsin)
-    print(f"masses that are myoglobin fragments (2 ppm): "
-          f"{len(from_myoglobin)}, of which about {len(by_chance)} by chance")
-    print(f"masses that are pepsin fragments: {len(from_pepsin)}")
-    real = assemble(
-        run_extend(FastObserved(calibrated, 3.0), PRESENT_DAY).contigs
-    )
-    real_recall = score(real, myoglobin)["recall_exact"]
-    print(f"\nmyoglobin residues recovered: {real_recall:.0%}")
-    oracle = assemble(
-        run_extend(FastObserved(from_myoglobin, 3.0), PRESENT_DAY).contigs
-    )
-    oracle_recall = score(oracle, myoglobin)["recall_exact"]
-    print(f"the same on the myoglobin masses alone, noise removed: "
-          f"{oracle_recall:.0%}")
+measured, myoglobin, pepsin = pxd071026()
+offset, _, _ = calibrate(measured, pepsin)
+calibrated = [value / (1 + offset * 1e-6) for value in measured]
+print(f"{len(measured)} masses; systematic error, from pepsin's "
+      f"autolysis fragments: {offset:+.2f} ppm")
+from_myoglobin = matching(calibrated, myoglobin)
+by_chance = matching([value + 0.3 for value in calibrated], myoglobin)
+from_pepsin = matching(calibrated, pepsin)
+print(f"masses that are myoglobin fragments (2 ppm): "
+      f"{len(from_myoglobin)}, of which about {len(by_chance)} by chance")
+print(f"masses that are pepsin fragments: {len(from_pepsin)}")
+real = assemble(
+    run_extend(FastObserved(calibrated, 3.0), PRESENT_DAY).contigs
+)
+real_recall = score(real, myoglobin)["recall_exact"]
+print(f"\nmyoglobin residues recovered: {real_recall:.0%}")
+oracle = assemble(
+    run_extend(FastObserved(from_myoglobin, 3.0), PRESENT_DAY).contigs
+)
+oracle_recall = score(oracle, myoglobin)["recall_exact"]
+print(f"the same on the myoglobin masses alone, noise removed: "
+      f"{oracle_recall:.0%}")
 """)
 
 add_markdown(r"""

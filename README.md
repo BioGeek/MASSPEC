@@ -152,7 +152,9 @@ The test case is the undeuterated pepsin digest of sperm whale myoglobin in
 [PXD071026](https://www.ebi.ac.uk/pride/archive/projects/PXD071026), an HDX-MS study on an LTQ
 Orbitrap: one small protein, a non-specific enzyme, one run. The protein's sequence is in the
 deposit (`rcsb_pdb_6Z4T.fasta`). `scripts/real_pxd071026.py` reproduces every number below; its
-output is in `docs/real_pxd071026.txt`.
+output is in `docs/real_pxd071026.txt`. The run's merged mass list ships with the package
+(`masspec.example.pxd071026()`, CC0 like the deposit; provenance in `src/masspec/data/README.md`),
+so the notebook's real-data section runs without the 148 MB raw file, on Colab too.
 
 ```bash
 mono ThermoRawFileParser.exe -i=data/raw/Mn_0s_1.raw -o=data/raw/ -f=1   # Thermo .raw to centroided mzML
