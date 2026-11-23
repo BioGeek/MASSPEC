@@ -164,13 +164,14 @@ is 3%.
 The study above explains why. The simulated pepsin digest of the same protein yields about 2000
 detectable fragments; this run holds about 140, some 7%. That is the "fragments missed" axis taken
 far past the 60% at which the method had already collapsed. Dayhoff and Eck's method needs many
-overlapping and nested fragments, including short ones: about six masses per residue (302 for insulin's 51) in their
-insulin problem. An HDX peptide map is built for the opposite purpose: a modest set of
-well-separated peptides that tile the protein once. So the answer to the question in issue #4 is
-that MASSPEC would work on present-day MS1 data **if the experiment were designed for it**: a few
-ppm (which current instruments give, after calibration), a digest that is close to random and
-deliberately incomplete, and the short fragments kept. A standard proteomics or HDX run is not that
-experiment.
+overlapping and nested fragments, including short ones: about six masses per residue (302 for
+insulin's 51) in their insulin problem. An HDX peptide map is built for the opposite purpose: a
+modest set of well-separated peptides that tile the protein once.
+
+So does a method that rests on accurate mass work better now that instruments measure mass so much
+better? Only **if the experiment is designed for it**. The accuracy is there: a few ppm, after
+calibration. What is missing is the data: a near-random partial digest, with the short fragments
+kept. A standard proteomics or HDX run is not that experiment.
 
 ## Layout
 
