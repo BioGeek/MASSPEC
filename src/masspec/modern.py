@@ -54,9 +54,19 @@ class FastObserved:
             self.bins.setdefault(int(m / self.width), []).append(m)
 
     def contains(self, m):
+        return self.match(m) is not None
+
+    def match(self, m):
+        """The observed mass matching `m` within the tolerance (the nearest), or None."""
         w = m * self.tol_ppm * 1e-6
         k = int(m / self.width)
-        return any(abs(x - m) <= w for b in (k - 1, k, k + 1) for x in self.bins.get(b, ()))
+        best = None
+        for b in (k - 1, k, k + 1):
+            for x in self.bins.get(b, ()):
+                d = abs(x - m)
+                if d <= w and (best is None or d < abs(best - m)):
+                    best = x
+        return best
 
     def __len__(self):
         return len(self.masses)
@@ -87,35 +97,45 @@ def run_extend(observed, table=MASSES, water=H2O, lo=350.0, hi=6000.0, seed_len=
         cur[s[::-1]] = 0
     res.history.append(("SEEDS", seed_len, len(seeds)))
 
-    def suffix_support(seq):
-        o = t = 0
+    def suffix_support(seq, used):
+        """Observed masses (not yet used by this chain) among the suffixes up to `support_len`
+        residues, and the number of suffixes in the window."""
+        hits, t = [], 0
         m = water
         for k in range(1, min(len(seq), support_len) + 1):
             m += table[seq[-k]]
             if lo <= m <= hi:
                 t += 1
-                o += observed.contains(m)
-        return o, t
+                x = observed.match(m)
+                if x is not None and x not in used:
+                    hits.append(x)
+        return hits, t
 
     n = seed_len + 1
-    while cur and n <= max_protein:
+    # chain -> (score, masses it has used). A mass is ONE fragment of the protein, so it may support
+    # a chain once: otherwise a low-complexity chain (ALASALSAL...) whose suffix masses fall on the
+    # same observed masses at every turn grows forever on a handful of them.
+    state = {s: (sc, frozenset()) for s, sc in cur.items()}
+    while state and n <= max_protein:
         nxt = {}
-        for s, sc in cur.items():
+        for s, (sc, used) in state.items():
             grown = False
             for a in letters:
                 new = s + a
-                o, t = suffix_support(new)
+                hits, t = suffix_support(new, used)
+                o = len(set(hits))
                 if o >= min_hits and o >= support * t:
-                    nxt[new] = max(nxt.get(new, -1), sc + o)
+                    if new not in nxt or nxt[new][0] < sc + o:
+                        nxt[new] = (sc + o, used | set(hits))
                     grown = True
             if not grown and len(s) >= min_contig:
                 res.contigs.append((canon(s), sc))
         if len(nxt) > beam:
             res.converged = False
             res.reason = f"beam of {beam} reached"
-            nxt = dict(sorted(nxt.items(), key=lambda kv: -kv[1])[:beam])
+            nxt = dict(sorted(nxt.items(), key=lambda kv: -kv[1][0])[:beam])
         res.history.append(("EXTEND", n, len(nxt)))
-        cur = nxt
+        state = nxt
         n += 1
     best = {}
     for s, sc in res.contigs:
