@@ -2,7 +2,7 @@
 
 The paper's 'Practical considerations', redone.
 
-    uv run python scripts/study.py > docs/study.md
+    uv run python scripts/study.py > docs/study_table.md
 
 Each row simulates one condition (simulate.py) for two proteins and three
 seeds, runs the modern reconstruction (modern.run_extend), picks the answer
