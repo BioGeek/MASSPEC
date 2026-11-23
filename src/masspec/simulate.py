@@ -72,7 +72,7 @@ def peptide_abundances(seq, probs, min_len=2, max_len=40):
     return out
 
 
-def simulate(protein, enzyme="pepsin", p_max=0.35, background=0.03, min_len=3, max_len=40,
+def simulate(protein, enzyme="pepsin", p_max=0.35, background=0.03, min_len=1, max_len=40,
              mass_lo=350.0, mass_hi=6000.0, rel_threshold=1e-3, dropout=0.2, ppm=3.0,
              alkylated=True, met_ox=0.3, isotope_errors=0.05, n_noise=200, seed=0):
     """A present-day mass list for one protein.
