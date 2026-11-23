@@ -192,6 +192,12 @@ src/masspec/evaluate.py   picking the answer, and scoring it against a known seq
 scripts/study.py          the table above
 ```
 
+## License
+
+MIT, see [LICENSE](LICENSE). The license covers this code, not the 1970 paper:
+nothing of the paper is reproduced here beyond short quotations and the
+published masses and counts used to check the reimplementation.
+
 # Why?
 
 Prompted by

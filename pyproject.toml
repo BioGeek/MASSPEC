@@ -3,6 +3,8 @@ name = "masspec"
 version = "0.1.0"
 description = "MASSPEC (Dayhoff and Eck, 1970) reverse-engineered from the paper, and taken to present-day data"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = []
 
 [project.optional-dependencies]
