@@ -123,8 +123,14 @@ for k, (f, p) in enumerate(zip(eight, paper_fig4), 1):
 
 md(r"""
 Every dipeptide mass agrees with the paper exactly, and every octapeptide mass to one unit in the
-fifth decimal: the paper's are uniformly one lower, as if the program truncated where Python rounds.
-The table also shows why the method is hard:
+fifth decimal, the paper's being uniformly one lower. Rounding rules alone cannot explain that: every
+mass in Fig. 2 has five decimals, so these sums have no sixth digit to round or truncate. The original
+program evidently carried more digits than it printed. Fig. 2 itself is computed from elemental
+formulas with C = 12, H = 1.00782, N = 14.00307, O = 15.99491 and S = 31.97207 (all 18 values come out
+exactly), and the dipeptides of Fig. 3 and the tetrapeptides of Fig. 5 all match if the water it
+subtracts is 18.010565 rather than the printed 18.01056; the octapeptides fit no single value. The
+rest is presumably the floating-point arithmetic of a 1970 machine, which cannot be recovered from
+the printed numbers. The table also shows why the method is hard:
 rows 13 and 14 are the same composition, and many different peptides share a mass.
 
 ## Fig. 5: PEPMS, the table of all peptide masses
@@ -151,8 +157,8 @@ print("\nANFR - TJHH =", f"{mass('ANFR') - mass('TJHH'):.5f}", "   JNNF - VNQF =
 md(r"""
 The groups are the paper's, entry for entry: VNQF with JNNF at 506.24863, TQKM with CKKE, then
 PPFF, PJMF and JJMM, and ANFR, GQFR and TJHH together at 506.25986, the paper's own example of a
-degeneracy (identical elemental formulas). As in Fig. 4, the masses here are one unit higher in the
-fifth decimal. At a resolution of 0.02 a.m.u. many of these neighbouring groups also blur together.
+degeneracy (identical elemental formulas). The masses here are one unit higher in the fifth decimal,
+for the reason given under Fig. 4. At a resolution of 0.02 a.m.u. many of these neighbouring groups also blur together.
 
 ## The input: one spectrum of ideal masses
 
