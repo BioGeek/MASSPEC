@@ -176,7 +176,15 @@ mostly long ones (up to 49 residues). Pepsin's own fragments account for 408.
 is 6%, which is what the same contigs score against shuffled myoglobin (up to 6% over ten
 shuffles): chance.
 
-The study above explains why. The simulated pepsin digest of the same protein yields about 2000
+**What a present-day *de novo* model makes of the same run.** The run also recorded 4505 MS/MS
+spectra, which MASSPEC never had: each isolates one peptide and fragments it. InstaNovo 1.2.2
+(model instanovo-v1.2.0, with InstaNovo+ refinement, on a GPU) reads them; kept at 10 ppm and
+confidence 0.9, its 248 distinct peptides include 33 exact stretches of myoglobin, covering 82% of
+it, and 124 of pepsin. Against shuffled myoglobin no prediction is an exact stretch. The predictions
+ship with the package (`masspec.example.pxd071026_instanovo()`) and close the notebook;
+`scripts/package_instanovo_pxd071026.py` gives the command that made them.
+
+The study above explains why MASSPEC fails here. The simulated pepsin digest of the same protein yields about 2000
 detectable fragments; this run holds about 145, some 7%. That is the "fragments missed" axis taken
 far past the 60% at which the method had already collapsed. Dayhoff and Eck's method needs many
 overlapping and nested fragments, including short ones: about six masses per residue (302 for

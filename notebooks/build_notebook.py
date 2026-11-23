@@ -1034,6 +1034,106 @@ designed for it: a near-random, deliberately partial digest, with the short
 fragments kept. A standard proteomics or HDX run is not that experiment.
 """)
 
+add_markdown(r"""
+## Fifty-five years on: tandem MS and deep learning
+
+MASSPEC had only intact masses to go on, because in 1970 an instrument could
+not pick one peptide out of a mixture and break it apart. Tandem mass
+spectrometry does exactly that: it isolates one precursor, fragments it, and
+the sequence can be read from that one peptide's fragment ladder, without
+reference to any other peptide. Beside its MS1 scans, this run recorded 4505
+such MS/MS spectra, with high-resolution HCD fragments.
+
+A present-day *de novo* model reads them directly.
+[InstaNovo][instanovo], a transformer, with [InstaNovo+][instanovo-plus]
+refining its
+less confident calls, was run on them: InstaNovo 1.2.2, the current release,
+with the instanovo-v1.2.0 model, on a GPU. A GPU decode does not belong in
+this notebook, so its predictions ship with the package
+(`masspec.example.pxd071026_instanovo()`);
+`scripts/package_instanovo_pxd071026.py` gives the command that made them.
+
+The filter is reference-free, as everything MASSPEC was given: keep a
+prediction when its mass is within 10 ppm of the precursor's and InstaNovo's
+confidence is at least 0.9. The score is the one used above, against
+myoglobin and against shuffled myoglobin.
+
+[instanovo]: https://jeroen.vangoey.be/awesome_de_novo_peptide_sequencing/pages/algorithms/instanovo.html
+[instanovo-plus]: https://jeroen.vangoey.be/awesome_de_novo_peptide_sequencing/pages/algorithms/instanovo-plus.html
+""")
+
+add_code(r"""
+import re
+
+from masspec.example import pxd071026_instanovo
+
+
+def plain(peptide):
+    # drop the modifications, and write I as L, as everywhere above
+    return re.sub(r"\[UNIMOD:\d+\]-?", "", peptide).replace("I", "L")
+
+
+predictions = pxd071026_instanovo()
+confident = sorted({
+    plain(row.peptide) for row in predictions
+    if abs(row.ppm_error) <= 10 and row.confidence >= 0.9
+})
+print(f"{len(predictions)} MS/MS spectra read; {len(confident)} distinct "
+      f"peptides within 10 ppm at confidence 0.9 or more")
+
+from_myoglobin = [peptide for peptide in confident if peptide in myoglobin]
+from_pepsin = [peptide for peptide in confident if peptide in pepsin]
+print(f"exact stretches of myoglobin: {len(from_myoglobin)}; of pepsin: "
+      f"{len(from_pepsin)}")
+
+contigs = [(peptide, 1.0) for peptide in confident]
+instanovo_recall = score(contigs, myoglobin)["recall_exact"]
+generator = random.Random(1)
+decoy_recalls, decoy_exact = [], []
+for _ in range(5):
+    residues = list(myoglobin)
+    generator.shuffle(residues)
+    decoy = "".join(residues)
+    decoy_recalls.append(score(contigs, decoy)["recall_exact"])
+    decoy_exact.append(sum(peptide in decoy for peptide in confident))
+print(f"\nmyoglobin residues recovered: {instanovo_recall:.0%} "
+      f"(MASSPEC, from the MS1 masses of the same run: {real_recall:.0%})")
+print(f"against five shuffled myoglobins: at most "
+      f"{max(decoy_recalls):.0%}, from at most {max(decoy_exact)} exact "
+      f"stretches")
+
+covered = set()
+for peptide in from_myoglobin:
+    start = myoglobin.find(peptide)
+    covered.update(range(start, start + len(peptide)))
+print("\nmyoglobin, residues covered by InstaNovo's peptides marked ^:")
+for start in range(0, len(myoglobin), 60):
+    print("  " + myoglobin[start:start + 60])
+    print("  " + "".join("^" if position in covered else " "
+                         for position in range(start, start + 60)
+                         if position < len(myoglobin)))
+""")
+
+add_markdown(r"""
+Most of myoglobin comes back, as exact peptides, from the very run in which
+MASSPEC found nothing beyond chance. Against shuffled myoglobin the same
+score stays low, earned by loose alignments rather than exact peptides. Most
+of the other confident predictions are pepsin's own peptides,
+which are right too, only for the other protein in the tube. What changed is
+less the arithmetic than the measurement: a fragment spectrum carries the
+sequence ladder of one peptide, where MASSPEC had to infer the order of
+residues from which intact fragments happened to overlap.
+
+Between 1970 and now lie more than fifty years of methods: graph and
+dynamic-programming algorithms from 1990, probabilistic scoring, hybrids of
+sequence tags and database search, and, since 2017, deep learning. The
+[Awesome *de novo* peptide sequencing][catalog] catalog maps that whole
+history method by method, from Biemann's 1959 paper, the first computer
+programs of 1966 and MASSPEC itself to the models of today.
+
+[catalog]: https://jeroen.vangoey.be/awesome_de_novo_peptide_sequencing/
+""")
+
 notebook = nbformat.v4.new_notebook(cells=cells, metadata={
     "kernelspec": {
         "name": "python3",

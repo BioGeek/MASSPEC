@@ -17,6 +17,17 @@ from .masses import normalise
 _DATA = files("masspec") / "data"
 
 
+class Prediction(NamedTuple):
+    """One MS/MS spectrum as InstaNovo read it."""
+
+    scan: int
+    precursor_mz: float
+    charge: int
+    peptide: str
+    confidence: float
+    ppm_error: float
+
+
 class Run(NamedTuple):
     """The packaged run: uncalibrated masses, and the two sequences."""
 
@@ -42,3 +53,21 @@ def pxd071026():
     masses = [float(row.split("\t")[0]) for row in rows]
     return Run(masses, _sequence("myoglobin_6Z4T.fasta"),
                _sequence("pepsin_A_P00791.fasta"))
+
+
+def pxd071026_instanovo():
+    """InstaNovo's reading of every MS/MS spectrum in the same run.
+
+    InstaNovo 1.2.2 with the instanovo-v1.2.0 model and InstaNovo+
+    refinement, run on a GPU (scripts/package_instanovo_pxd071026.py has
+    the command). `peptide` is ProForma with UNIMOD modifications;
+    `confidence` is the model's probability for its prediction; `ppm_error`
+    the gap between the prediction's mass and the precursor's.
+    """
+    rows = (_DATA / "pxd071026_Mn_0s_1_instanovo.tsv").read_text()
+    out = []
+    for row in rows.splitlines()[1:]:
+        scan, mz, charge, peptide, confidence, ppm_error = row.split("\t")
+        out.append(Prediction(int(scan), float(mz), int(charge), peptide,
+                              float(confidence), float(ppm_error)))
+    return out
