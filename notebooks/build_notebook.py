@@ -353,6 +353,21 @@ for length, paper in zip(range(1, 5), (16, 66, 197, None)):
 """)
 
 add_markdown(r"""
+**Why "Fragments" and "Paper" exceed "True Ones".** The first two count what
+MASFRG returns: every composition whose mass lies within ±0.02 a.m.u. of an
+observed mass. "True Ones" counts only the compositions of insulin's real
+fragments. The rest are spurious, of two kinds: isomers, different residues
+with the same elemental formula (AV = GL, VQ = JN), and near-isobars that fall
+inside the ±0.02 window. Single residues have neither (the closest pair, Q and
+K, are 0.036 apart), so all 16 are true. From there the spurious share grows
+with length, because the number of possible compositions grows far faster than
+the number of real fragments while the window stays as wide: 41 true among 66
+dipeptides, 42 among 197 tripeptides, 43 among 749 tetrapeptides. The paper
+puts it as "there are actually only 45 true fragments 3 long. However, their
+masses correspond to any of 197 amino acid compositions." Insulin has 46
+distinct tripeptides by our count; they make only 42 different compositions,
+and a composition is all a mass can tell.
+
 ## Fig. 7: PRUNE
 
 "If the peptide (F,G,H,I) is true in any of its possible permutations, there
