@@ -1,0 +1,7 @@
+5021 MS1 features; offset from pepsin autolysis peptides -5.04 ppm (275 matches in the peak bin, 49 per background bin)
+features matching a myoglobin fragment within 2 ppm: 174 (by chance, at +0.3 Da: 33); a pepsin fragment: 396
+reconstruction at 3.0 ppm vs myoglobin: {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 39, 'residues_output': 383}
+reconstruction at 3.0 ppm vs pepsin:    {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 39, 'residues_output': 383}
+reconstruction at 5.0 ppm vs myoglobin: {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 36, 'residues_output': 375}
+reconstruction at 5.0 ppm vs pepsin:    {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 36, 'residues_output': 375}
+oracle, the 174 myoglobin-matching masses alone: {'recall_exact': 0.03, 'recall_with_equivalents': 0.03, 'precision_exact': 0.01, 'precision_with_equivalents': 0.01, 'contigs': 50, 'residues_output': 358}

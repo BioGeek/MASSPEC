@@ -131,15 +131,40 @@ mass lists from other feature finders (MaxQuant `allPeptides.txt`, Dinosaur `.fe
 CSV/TSV with a mass column).
 
 The test case is the undeuterated pepsin digest of sperm whale myoglobin in
-[PXD071026](https://www.ebi.ac.uk/pride/archive/projects/PXD071026) (an HDX-MS study on an LTQ
-Orbitrap; the protein's sequence is in the deposit, `rcsb_pdb_6Z4T.fasta`):
+[PXD071026](https://www.ebi.ac.uk/pride/archive/projects/PXD071026), an HDX-MS study on an LTQ
+Orbitrap: one small protein, a non-specific enzyme, one run. The protein's sequence is in the
+deposit (`rcsb_pdb_6Z4T.fasta`). `scripts/real_pxd071026.py` reproduces every number below; its
+output is in `docs/real_pxd071026.txt`.
 
 ```bash
-# Thermo .raw to centroided mzML, with CompOmics ThermoRawFileParser (runs under mono)
-mono ThermoRawFileParser.exe -i=data/raw/Mn_0s_1.raw -o=data/raw/ -f=1
-uv run masspec run data/raw/Mn_0s_1.mzML --ppm 9 --no-alkylation --mods m \
-    --truth data/raw/rcsb_pdb_6Z4T.fasta
+mono ThermoRawFileParser.exe -i=data/raw/Mn_0s_1.raw -o=data/raw/ -f=1   # Thermo .raw to centroided mzML
+uv run masspec run data/raw/Mn_0s_1.mzML --ppm 3 --no-alkylation \
+    --calibrant data/raw/pepsin_A_mature.fasta --truth data/raw/rcsb_pdb_6Z4T.fasta
 ```
+
+**Calibration without the answer.** The run's masses sit about 5 ppm low. In a pepsin digest pepsin
+digests itself, its sequence is public (UniProt P00791), and its autolysis fragments are in every
+run, so `--calibrant` estimates the offset from them, never from the protein being sequenced:
+-5.04 ppm, with 275 pepsin matches in the peak 2-ppm bin against about 49 in a background bin.
+
+**What the run contains.** 5021 MS1 features. After calibration, 174 match a myoglobin fragment
+within 2 ppm, of which about 33 would match by chance, so roughly 140 real myoglobin fragments,
+mostly long ones (up to 49 residues). Pepsin's own fragments account for 396.
+
+**What MASSPEC makes of it: nothing.** No residue of myoglobin (or of pepsin) is recovered, at 3 or
+5 ppm. Removing every noise mass does not help: on the 174 myoglobin-matching masses alone, recall
+is 3%.
+
+The study above explains why. The simulated pepsin digest of the same protein yields about 2000
+detectable fragments; this run holds about 140, some 7%. That is the "fragments missed" axis taken
+far past the 60% at which the method had already collapsed. Dayhoff and Eck's method needs many
+overlapping and nested fragments, including short ones: around ten masses per residue in their
+insulin problem. An HDX peptide map is built for the opposite purpose: a modest set of
+well-separated peptides that tile the protein once. So the answer to the question in issue #4 is
+that MASSPEC would work on present-day MS1 data **if the experiment were designed for it**: a few
+ppm (which current instruments give, after calibration), a digest that is close to random and
+deliberately incomplete, and the short fragments kept. A standard proteomics or HDX run is not that
+experiment.
 
 ## Layout
 

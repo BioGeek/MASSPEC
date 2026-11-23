@@ -68,6 +68,12 @@ def cmd_run(a):
     else:
         from .features import read_mass_list
         masses = read_mass_list(path, a.column)
+    if a.calibrant:
+        from .features import calibrate
+        off, peak, bg = calibrate(masses, _fasta_or_seq(a.calibrant))
+        print(f"calibrant: offset {off:+.2f} ppm ({peak} matches in the peak bin, {bg:.0f} per background bin)",
+              file=sys.stderr)
+        masses = [m / (1 + off * 1e-6) for m in masses]
     table = dict(MASSES)
     if not a.no_alkylation:
         table["C"] = MODIFIED["c"]
@@ -116,6 +122,8 @@ def main(argv=None):
     r.add_argument("--mods", nargs="*", choices=["m", "n", "q"], help="variable mods as extra letters")
     r.add_argument("--feature-ppm", type=float, default=10.0)
     r.add_argument("--min-scans", type=int, default=2)
+    r.add_argument("--calibrant", help="sequence or FASTA of a protein known to be in the run (pepsin in a "
+                   "pepsin digest), to remove the systematic mass error before matching")
     r.add_argument("--truth", help="known sequence or FASTA, to score the answer")
     r.set_defaults(fn=cmd_run)
 

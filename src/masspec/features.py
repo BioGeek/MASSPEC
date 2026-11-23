@@ -106,6 +106,48 @@ def merge(raw, ppm=10.0, min_scans=2):
     return out
 
 
+def calibrate(masses, calibrant, window_ppm=20.0, max_len=40):
+    """Systematic mass error (ppm) estimated from a KNOWN protein in the same run.
+
+    Like a lock mass, but from peptides: in a pepsin digest, pepsin digests itself, so its
+    autolysis fragments are in every run and its sequence is public. Every mass is compared with
+    every fragment of `calibrant` (up to `max_len` residues); true matches pile up at the
+    instrument's offset while chance matches spread evenly, so the offset is the mode of the errors
+    (2 ppm bins), refined to the median of the errors within 2 ppm of it. It never looks at the
+    protein being sequenced. Returns (offset_ppm, matches_in_peak, matches_per_background_bin).
+    """
+    import bisect
+    import statistics
+    from .masses import MASSES, H2O
+    seq = calibrant.upper().replace("I", "L")
+    frags = set()
+    for i in range(len(seq)):
+        m = H2O
+        for j in range(i, min(len(seq), i + max_len)):
+            if seq[j] not in MASSES:
+                break
+            m += MASSES[seq[j]]
+            frags.add(m)
+    frags = sorted(frags)
+    errs = []
+    for x in masses:
+        k = bisect.bisect_left(frags, x)
+        for c in frags[max(0, k - 1):k + 1]:
+            e = (x - c) / c * 1e6
+            if abs(e) <= window_ppm:
+                errs.append(e)
+    if not errs:
+        return 0.0, 0, 0.0
+    bins = {}
+    for e in errs:
+        bins.setdefault(int((e + window_ppm) // 2), []).append(e)
+    peak = max(bins, key=lambda b: len(bins[b]))
+    mode = statistics.median(bins[peak])
+    near = [e for e in errs if abs(e - mode) <= 2]
+    background = (len(errs) - len(bins[peak])) / max(1, len(bins) - 1)
+    return statistics.median(near), len(bins[peak]), background
+
+
 def read_mass_list(path, column=None):
     """Neutral masses from a table another tool wrote.
 
