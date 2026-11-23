@@ -85,6 +85,12 @@ def composition(residues):
     return "".join(sorted(residues))
 
 
+def difference(first, second):
+    # first - second, rounded to the five decimals the paper prints. Adding
+    # 0.0 turns a negative zero (a leftover such as -1e-12) into a plain 0.
+    return round(first - second, 5) + 0.0
+
+
 # insulin A chain, bovine (21 residues)
 INSULIN_A = "GJVEQCCASVCSJOQJENOCN"
 # insulin B chain, bovine (30 residues)
@@ -114,7 +120,8 @@ print(
 for amino_acid in sorted(_FREE_1970):
     now = modern[amino_acid] + H2O  # free amino acid = residue + water
     printed = _FREE_1970[amino_acid]
-    print(f"{amino_acid:4}{printed:14.5f}{now:20.5f}{printed - now:12.5f}")
+    gap = difference(printed, now)
+    print(f"{amino_acid:4}{printed:14.5f}{now:20.5f}{gap:12.5f}")
 """)
 
 add_markdown(r"""
@@ -159,7 +166,8 @@ print(f"{'':4}{'here':>12}{'paper':>12}{'diff':>10}")
 for dipeptide in dipeptides:
     here = peptide_mass(dipeptide)
     printed = paper_fig3[dipeptide]
-    print(f"{dipeptide:4}{here:12.5f}{printed:12.5f}{here - printed:10.5f}")
+    gap = difference(here, printed)
+    print(f"{dipeptide:4}{here:12.5f}{printed:12.5f}{gap:10.5f}")
 """)
 
 add_code(r"""
@@ -175,13 +183,14 @@ for number, (fragment, printed) in enumerate(zip(eight, paper_fig4), 1):
     here = peptide_mass(fragment)
     print(
         f"{number:3}{composition(fragment):>14}{here:12.5f}"
-        f"{printed:12.5f}{here - printed:10.5f}"
+        f"{printed:12.5f}{difference(here, printed):10.5f}"
     )
 """)
 
 add_markdown(r"""
-Every dipeptide mass agrees with the paper exactly, and every octapeptide mass
-to one unit in the fifth decimal, the paper's being uniformly one lower.
+Every mass agrees with the paper to one unit in the fifth decimal: 22 of the
+25 dipeptides exactly (FF, HQ and NQ are one unit lower in the paper), and
+every octapeptide one unit lower in the paper.
 Rounding rules alone cannot explain that: every mass in Fig. 2 has five
 decimals, so these sums have no sixth digit to round or truncate. The original
 program evidently carried more digits than it printed. Fig. 2 itself is
@@ -216,10 +225,9 @@ for group_mass in window:
     step = f"{group_mass - previous:.5f}" if previous else ""
     print(f"{group_mass:11.5f} {step:>9}   {' '.join(table[group_mass])}")
     previous = group_mass
-print(
-    "\nANFR - TJHH =", f"{peptide_mass('ANFR') - peptide_mass('TJHH'):.5f}",
-    "   JNNF - VNQF =", f"{peptide_mass('JNNF') - peptide_mass('VNQF'):.5f}",
-)
+anfr_tjhh = difference(peptide_mass("ANFR"), peptide_mass("TJHH"))
+jnnf_vnqf = difference(peptide_mass("JNNF"), peptide_mass("VNQF"))
+print(f"\nANFR - TJHH = {anfr_tjhh:.5f}    JNNF - VNQF = {jnnf_vnqf:.5f}")
 """)
 
 add_markdown(r"""
