@@ -1,11 +1,16 @@
 # MASSPEC, reverse-engineered
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BioGeek/MASSPEC/blob/main/notebooks/masspec_1970.ipynb)
+
 A reimplementation of **MASSPEC**, [Margaret O. Dayhoff](https://en.wikipedia.org/wiki/Margaret_Oakley_Dayhoff)
 and [Richard V. Eck](https://pmc.ncbi.nlm.nih.gov/articles/PMC2206694/)'s 1970 program for
 sequencing a whole protein from one high-resolution mass spectrum of its partial hydrolysate
 (*Computers in Biology and Medicine* 1, 5-28, 1970,
 [doi:10.1016/0010-4825(70)90013-2](https://doi.org/10.1016/0010-4825(70)90013-2)), and an extension
 that runs it on present-day data.
+
+The [notebook](notebooks/masspec_1970.ipynb) walks through the paper program by program and
+rebuilds every figure, then runs the method on present-day data.
 
 **This is not Dayhoff and Eck's code**, which appears to be lost. It was written from the paper's
 description and its appendix, which describes each program step by step. Where the paper is
@@ -77,7 +82,8 @@ Three things had to be decided:
 `notebooks/masspec_1970.ipynb` walks through all of this step by step, regenerating each figure of
 the paper (Figs. 1 to 11) next to the values the paper prints, and redoes its "practical
 considerations": noise, resolution, and 100-residue proteins. It is built and executed by
-`notebooks/build_notebook.py` (`uv sync --group notebook` first).
+`notebooks/build_notebook.py` (`uv sync --group notebook` first). On Colab it installs the
+package itself: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BioGeek/MASSPEC/blob/main/notebooks/masspec_1970.ipynb)
 
 ## On present-day data (`modern.py`, `simulate.py`, `features.py`)
 

@@ -33,6 +33,8 @@ def add_code(source):
 add_markdown(r"""
 # MASSPEC (1970), step by step
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BioGeek/MASSPEC/blob/main/notebooks/masspec_1970.ipynb)
+
 Margaret O. Dayhoff and Richard V. Eck, "MASSPEC: A computer program for
 complete sequence analysis of large proteins from mass spectrometry data of a
 single sample", *Computers in Biology and Medicine* 1, 5-28 (1970),
@@ -58,6 +60,23 @@ lost.**
 The paper's one-letter code is used throughout: **J** is leucine or isoleucine
 (they weigh the same, so the method cannot tell them apart) and **O** is
 tyrosine.
+""")
+
+add_code(r"""
+# On Colab, or anywhere else the package is not installed yet, install it
+# from GitHub. In a clone, `uv sync --group notebook` has already done so.
+import importlib
+import importlib.util
+import subprocess
+import sys
+
+if importlib.util.find_spec("masspec") is None:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet",
+         "masspec @ git+https://github.com/BioGeek/MASSPEC"],
+        check=True,
+    )
+    importlib.invalidate_caches()
 """)
 
 add_code(r"""
