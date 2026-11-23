@@ -1,6 +1,10 @@
 """Write and execute notebooks/masspec_1970.ipynb.
 
-    uv run --group notebook python notebooks/build_notebook.py
+    uv sync --extra real --group notebook
+    uv run python notebooks/build_notebook.py
+
+The last section reads the real run in data/raw/ when it is there (see
+scripts/real_pxd071026.py); without it, that cell says so and the rest runs.
 
 The notebook's cells live here, as plain strings, so a change to the
 walkthrough is a reviewable diff of this file rather than of notebook JSON.
@@ -750,17 +754,277 @@ add_markdown(r"""
 The paper's estimate holds: with masses up to about 800-1000 a.m.u. a
 100-residue protein comes back from its fragment masses alone, and below that
 it may not.
+""")
 
+add_markdown(r"""
 ## And today?
 
 The paper ends: "The actual characteristics of a working system will determine
-the practicability of the whole scheme." The rest of this repository asks that
-question of present-day instruments: `simulate.py` makes the mass list of an
-LC-MS run of a non-specific digest, `modern.py` adapts the reconstruction to
-it, and `scripts/real_pxd071026.py` runs it on a real pepsin digest of
-myoglobin. The README summarises what came out: the accuracy is there (a few
-ppm), but a standard proteomics or HDX run does not contain the many short,
-overlapping fragments the method lives on.
+the practicability of the whole scheme." Fifty-five years on, instruments
+measure mass to a few ppm, far better than the ±0.01 a.m.u. the paper asked
+for. Does the method work on what they produce? The rest of this notebook asks
+that with the rest of the package: `simulate.py` makes the mass list of a
+present-day experiment, `modern.py` adapts the reconstruction to it, and the
+last section runs it on a real one.
+
+### What present-day data looks like
+
+Dayhoff and Eck's data never existed: every fragment up to nine residues,
+observed exactly. An LC-MS run of a non-specific digest (pepsin, as in every
+HDX-MS experiment) differs in ways that all matter here: cleavage is uneven,
+peptides below about 350 Da hardly retain on the column and are not seen, some
+detectable fragments are missed anyway, masses come with a few ppm of error,
+and noise masses mix in. `simulate()` makes such a mass list for ubiquitin (76
+residues), keeping the truth beside it.
+""")
+
+add_code(r"""
+from masspec.evaluate import assemble, score
+from masspec.masses import MASSES as PRESENT_DAY
+from masspec.modern import FastObserved, run_extend, run_modern
+from masspec.simulate import coverage, simulate
+
+UBIQUITIN = (
+    "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLV"
+    "LRLRGG"
+)
+digest = simulate(UBIQUITIN, enzyme="pepsin", ppm=3.0, dropout=0.2,
+                  alkylated=False, seed=0)
+print(f"{len(digest.peptides)} fragments detected, {len(digest.masses)} "
+      f"masses reported (noise included)")
+print(f"fragments up to 12 residues inside the 350-6000 Da window that were "
+      f"detected: {coverage(digest, 12):.0%}")
+
+by_length = {}
+for start, end, _, _ in digest.peptides:
+    by_length[end - start + 1] = by_length.get(end - start + 1, 0) + 1
+lengths_seen = sorted(by_length)
+figure, axes = plt.subplots(figsize=(8, 3.2))
+axes.bar(lengths_seen, [by_length[length] for length in lengths_seen],
+         color="#2563eb", width=0.8)
+axes.set_xlabel("fragment length (residues)")
+axes.set_ylabel("fragments detected")
+axes.set_title("Simulated pepsin digest of ubiquitin: what the run sees")
+plt.show()
+""")
+
+add_markdown(r"""
+Nothing shorter than three residues is seen, and that is where MASSPEC starts:
+its first phases (MASFRG, PRUNE, CQ) work on compositions of one to four
+residues, and every longer candidate must contain observed shorter ones.
+
+### The 1970 reconstruction on it
+
+`run_modern()` is the 1970 program with the smallest changes that let it run
+at all: masses outside the observable window are assumed observed (the paper
+already did this above 1000 a.m.u.), masses are matched within a ppm tolerance,
+and a candidate needs most, not all, of its sub-fragments observed. OVERLAP
+itself is unchanged: a candidate of length N is built only from two surviving
+candidates of length N-1.
+""")
+
+add_code(r"""
+truth = digest.protein
+overlap_result = run_modern(Observed(digest.masses, tol_ppm=9.0), PRESENT_DAY)
+overlap_score = score(assemble(overlap_result.contigs), truth)
+print(f"residues of ubiquitin recovered: {overlap_score['recall_exact']:.0%}; "
+      f"reported residues that are right: "
+      f"{overlap_score['precision_exact']:.0%}")
+""")
+
+add_markdown(r"""
+Because OVERLAP needs every window of the true sequence to survive on its own,
+one missing fragment breaks every chain running through it, and with a fifth of
+the fragments missing the chains break every few residues.
+
+### Growing chains one residue at a time
+
+`run_extend()` keeps MASSPEC's seeds but grows each chain one residue at a
+time, judging an extension by the fragments that END at the new residue: at
+least one, and half of those in the window, must be observed, and each observed
+mass may support a chain only once (it is one fragment of the protein). A
+missing fragment then weakens a chain instead of cutting it.
+""")
+
+add_code(r"""
+extend_result = run_extend(FastObserved(digest.masses, 9.0), PRESENT_DAY)
+answer = assemble(extend_result.contigs)
+extend_score = score(answer, truth)
+with_swaps = extend_score["recall_with_equivalents"]
+print(f"residues of ubiquitin recovered: {extend_score['recall_exact']:.0%} "
+      f"({with_swaps:.0%} counting mass-identical swaps); reported residues "
+      f"that are right: {extend_score['precision_exact']:.0%}\n")
+print(f"{'Support':>7}  {'Found':<6}Contig")
+for contig, support in answer:
+    found = "yes" if contig in truth or contig[::-1] in truth else "no"
+    print(f"{support:7}  {found:<6}{contig}")
+""")
+
+add_markdown(r"""
+The answer is a set of contigs, each read in either direction. Masses alone
+cannot order them, cannot tell I from L, and cannot tell Q from GA or N from GG
+(identical elemental formulas); "Found" is strict, so a contig with one such
+swap shows as "no".
+
+### Where it works
+
+The paper's "practical considerations", redone for present-day data: the same
+reconstruction over simulated pepsin digests of ubiquitin, three seeds each,
+varying the mass error and the share of detectable fragments missed.
+`scripts/study.py` runs the full grid, on myoglobin too, with the enzyme, the
+lowest observable mass and the noise as well; its table is
+`docs/study_table.md`.
+""")
+
+add_code(r"""
+def reconstruct(ppm, dropout):
+    # mean recall and precision over three simulated digests
+    recalls, precisions = [], []
+    for seed in (0, 1, 2):
+        simulated = simulate(UBIQUITIN, enzyme="pepsin", ppm=ppm,
+                             dropout=dropout, alkylated=False, seed=seed)
+        result = run_extend(FastObserved(simulated.masses, 3 * ppm),
+                            PRESENT_DAY)
+        scored = score(assemble(result.contigs), simulated.protein)
+        recalls.append(scored["recall_exact"])
+        precisions.append(scored["precision_exact"])
+    return sum(recalls) / 3, sum(precisions) / 3
+
+
+ppm_levels = [1, 3, 10, 30]
+dropout_levels = [0.0, 0.2, 0.4, 0.6]
+by_ppm = [reconstruct(ppm, 0.2) for ppm in ppm_levels]
+by_dropout = [reconstruct(3.0, dropout) for dropout in dropout_levels]
+
+figure, (left, right) = plt.subplots(1, 2, figsize=(9, 3.4), sharey=True)
+for axes, levels, results, label in (
+    (left, ppm_levels, by_ppm, "mass error (ppm)"),
+    (right, [100 * level for level in dropout_levels], by_dropout,
+     "detectable fragments missed (%)"),
+):
+    axes.plot(levels, [recall for recall, _ in results], marker="o",
+              color="#2563eb", lw=2, label="recall")
+    axes.plot(levels, [precision for _, precision in results], marker="o",
+              color="#ea580c", lw=2, label="precision")
+    axes.set_xlabel(label)
+    axes.set_ylim(0, 1)
+left.set_xscale("log")
+left.set_xticks(ppm_levels, [str(level) for level in ppm_levels])
+left.set_ylabel("share of residues")
+left.legend(frameon=False)
+figure.suptitle("Ubiquitin from a simulated pepsin digest")
+plt.tight_layout()
+plt.show()
+""")
+
+add_markdown(r"""
+Mass accuracy decides it, as the paper's arithmetic said it would: at 1-3 ppm,
+which any current Orbitrap or FT-ICR gives, most of the protein comes back; at
+10 ppm the precision collapses; at 30 ppm nothing does. Completeness is the
+other half: the result degrades steadily as fragments go missing, and with
+three fifths of them missed little is left.
+
+### A real run
+
+PRIDE project
+[PXD071026](https://www.ebi.ac.uk/pride/archive/projects/PXD071026) is an
+HDX-MS study of sperm whale myoglobin (154 residues) on an LTQ Orbitrap: one
+small protein, pepsin, one run. Its undeuterated run is a present-day version
+of the experiment the paper proposed. The raw file is not in this repository;
+`scripts/real_pxd071026.py` says how to fetch and convert it, and the cell
+below uses it when it is there.
+
+Three steps: `masses_from_mzml()` collapses the run's MS1 scans into one list
+of neutral masses (MASSPEC's "single spectrum"); `calibrate()` removes the
+instrument's systematic mass error using pepsin's own autolysis fragments,
+which are in every pepsin digest and never in the protein being sequenced;
+and the reconstruction runs on the result.
+""")
+
+add_code(r"""
+import bisect
+from pathlib import Path
+
+from masspec.features import calibrate, masses_from_mzml
+
+RAW = Path("..") / "data" / "raw"
+
+
+def read_fasta(path):
+    lines = path.read_text().splitlines()
+    sequence = "".join(
+        line.strip() for line in lines if not line.startswith(">")
+    )
+    return sequence.upper().replace("I", "L")
+
+
+def fragment_masses(protein, max_len=60):
+    # every fragment's mass, with present-day residue masses
+    found = set()
+    for start in range(len(protein)):
+        running = H2O
+        for end in range(start, min(len(protein), start + max_len)):
+            running += PRESENT_DAY[protein[end]]
+            found.add(running)
+    return sorted(found)
+
+
+def matching(masses, protein, ppm=2.0):
+    # the masses within `ppm` of some fragment of `protein`
+    targets = fragment_masses(protein)
+    hits = []
+    for value in masses:
+        window = value * ppm * 1e-6
+        position = bisect.bisect_left(targets, value - window)
+        if position < len(targets) and targets[position] <= value + window:
+            hits.append(value)
+    return hits
+
+
+run_file = RAW / "Mn_0s_1.mzML"
+if not run_file.exists():
+    print(f"{run_file} is not here: see scripts/real_pxd071026.py.")
+else:
+    myoglobin = read_fasta(RAW / "rcsb_pdb_6Z4T.fasta")
+    pepsin = read_fasta(RAW / "pepsin_A_mature.fasta")
+    features = masses_from_mzml(run_file, ppm=10, min_scans=2)
+    measured = [feature[0] for feature in features]
+    offset, _, _ = calibrate(measured, pepsin)
+    calibrated = [value / (1 + offset * 1e-6) for value in measured]
+    print(f"{len(measured)} masses; systematic error, from pepsin's "
+          f"autolysis fragments: {offset:+.2f} ppm")
+    from_myoglobin = matching(calibrated, myoglobin)
+    by_chance = matching([value + 0.3 for value in calibrated], myoglobin)
+    from_pepsin = matching(calibrated, pepsin)
+    print(f"masses that are myoglobin fragments (2 ppm): "
+          f"{len(from_myoglobin)}, of which about {len(by_chance)} by chance")
+    print(f"masses that are pepsin fragments: {len(from_pepsin)}")
+    real = assemble(
+        run_extend(FastObserved(calibrated, 3.0), PRESENT_DAY).contigs
+    )
+    real_recall = score(real, myoglobin)["recall_exact"]
+    print(f"\nmyoglobin residues recovered: {real_recall:.0%}")
+    oracle = assemble(
+        run_extend(FastObserved(from_myoglobin, 3.0), PRESENT_DAY).contigs
+    )
+    oracle_recall = score(oracle, myoglobin)["recall_exact"]
+    print(f"the same on the myoglobin masses alone, noise removed: "
+          f"{oracle_recall:.0%}")
+""")
+
+add_markdown(r"""
+Nothing. Not because of accuracy: after calibration the masses are good to
+about a ppm. And not because of noise: with every noise mass removed the result
+is no better. The run simply holds too few of the fragments the method needs:
+about 140 real myoglobin fragments, mostly long, where the simulated pepsin
+digest of the same protein yields about 2000. Dayhoff and Eck's insulin problem
+had about six masses per residue; this run has about one. An HDX peptide map is
+built for the opposite purpose to MASSPEC's: a modest set of well-separated
+peptides that tile the protein once.
+
+So the method would work on present-day instruments, but only on an experiment
+designed for it: a near-random, deliberately partial digest, with the short
+fragments kept. A standard proteomics or HDX run is not that experiment.
 """)
 
 notebook = nbformat.v4.new_notebook(cells=cells, metadata={
