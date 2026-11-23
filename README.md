@@ -1,6 +1,7 @@
 # MASSPEC, reverse-engineered
 
-A reimplementation of **MASSPEC**, Margaret O. Dayhoff and Richard V. Eck's 1970 program for
+A reimplementation of **MASSPEC**, [Margaret O. Dayhoff](https://en.wikipedia.org/wiki/Margaret_Oakley_Dayhoff)
+and [Richard V. Eck](https://pmc.ncbi.nlm.nih.gov/articles/PMC2206694/)'s 1970 program for
 sequencing a whole protein from one high-resolution mass spectrum of its partial hydrolysate
 (*Computers in Biology and Medicine* 1, 5-28, 1970,
 [doi:10.1016/0010-4825(70)90013-2](https://doi.org/10.1016/0010-4825(70)90013-2)), and an extension
@@ -106,16 +107,16 @@ covered correctly. Precision: the fraction of reported residues that are correct
 
 | condition | ubiquitin recall / precision | myoglobin recall / precision |
 |---|---|---|
-| baseline (pepsin, 3 ppm, 20% missed) | 0.71 / 0.50 | 0.79 / 0.75 |
-| uniform cleavage (the paper's assumption) | 0.93 / 0.76 | 0.96 / 0.66 |
-| dilute acid | 0.59 / 0.64 | 0.98 / 0.91 |
-| 1 ppm | 0.71 / 0.61 | 0.80 / 0.83 |
-| 10 ppm | 0.59 / 0.09 | 0.37 / 0.04 |
+| baseline (pepsin, 3 ppm, 20% missed) | 0.71 / 0.45 | 0.81 / 0.77 |
+| uniform cleavage (the paper's assumption) | 0.91 / 0.72 | 0.96 / 0.62 |
+| dilute acid | 0.59 / 0.64 | 0.96 / 0.91 |
+| 1 ppm | 0.71 / 0.53 | 0.75 / 0.78 |
+| 10 ppm | 0.60 / 0.08 | 0.36 / 0.04 |
 | 30 ppm | 0 / 0 | 0 / 0 |
-| no fragments missed | 0.76 / 0.93 | 0.89 / 0.89 |
-| 40% missed | 0.55 / 0.30 | 0.42 / 0.18 |
-| nothing seen below 600 Da | 0.22 / 0.03 | 0.17 / 0.41 |
-| 2000 noise masses | 0.70 / 0.51 | 0.78 / 0.77 |
+| no fragments missed | 0.86 / 0.70 | 0.87 / 0.89 |
+| 40% missed | 0.53 / 0.32 | 0.45 / 0.18 |
+| nothing seen below 600 Da | 0 / 0 | 0 / 0 |
+| 2000 noise masses | 0.71 / 0.40 | 0.79 / 0.75 |
 
 What it says, in the paper's own terms:
 
@@ -123,8 +124,9 @@ What it says, in the paper's own terms:
   masses a modern digest yields, that is a few ppm. At 1-3 ppm (any current Orbitrap or FT-ICR) the
   method works; at 10 ppm it barely does; at 30 ppm (an older TOF) not at all.
 * **Completeness is the other half.** The method lives on fragments that overlap and nest. With
-  everything observed, 89-93% precision; with 40% of fragments missed it falls apart. Short fragments
-  matter most: raising the lowest observable mass from 350 to 600 Da destroys it.
+  everything observed, 86-87% of each protein comes back; with 40% of fragments missed it falls
+  apart. Short fragments matter most: raising the lowest observable mass from 350 to 600 Da leaves
+  nothing.
 * **Noise barely matters**, as the paper predicted ("random noise masses can be tolerated in
   surprisingly large quantity"): ten times more noise masses than the baseline change almost nothing.
 

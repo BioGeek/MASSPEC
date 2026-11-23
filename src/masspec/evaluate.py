@@ -32,8 +32,11 @@ def _similarity(first, second):
 
 
 def _rank_key(entry):
-    """Best score first, and among equal scores the longest contig first."""
-    return (-entry[1], -len(entry[0]))
+    """Best score first, then the longest contig, then alphabetical.
+
+    The last key makes the choice independent of the input order.
+    """
+    return (-entry[1], -len(entry[0]), entry[0])
 
 
 def assemble(contigs, redundant=0.6, min_score_frac=0.25, candidates=400,

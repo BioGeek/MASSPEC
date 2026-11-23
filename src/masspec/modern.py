@@ -87,23 +87,33 @@ class FastObserved:
 
 
 def _by_score_descending(item):
-    """Sort key for (chain, (score, used)) items: highest score first."""
-    return -item[1][0]
+    """Sort key for (chain, (score, used)) items: highest score first.
+
+    Ties go to the alphabetically first chain, so the beam does not depend
+    on set iteration order, which changes with Python's hash seed.
+    """
+    return (-item[1][0], item[0])
 
 
 def _by_value_descending(item):
-    """Sort key for (key, score) items: highest score first."""
-    return -item[1]
+    """Sort key for (key, score) items: highest score, then key, first."""
+    return (-item[1], item[0])
 
 
 def _by_score_then_length(contig):
-    """Sort key for (sequence, score): highest score, then longest, first."""
-    return (-contig[1], -len(contig[0]))
+    """Sort key for (sequence, score): highest score, then longest, first.
+
+    Remaining ties go to the alphabetically first sequence.
+    """
+    return (-contig[1], -len(contig[0]), contig[0])
 
 
 def _by_length_then_score(contig):
-    """Sort key for (sequence, score): longest, then highest score, first."""
-    return (-len(contig[0]), -contig[1])
+    """Sort key for (sequence, score): longest, then highest score, first.
+
+    Remaining ties go to the alphabetically first sequence.
+    """
+    return (-len(contig[0]), -contig[1], contig[0])
 
 
 def run_extend(observed, table=MASSES, water=H2O, lo=350.0, hi=6000.0,
@@ -139,7 +149,9 @@ def run_extend(observed, table=MASSES, water=H2O, lo=350.0, hi=6000.0,
     seqs = cq(prune(comps, 2))
     seeds = {seq for seq in seqs[seed_len] if seen(mass_of(seq))}
     cur = {}
-    for seed in seeds:
+    # Sorted: iterating the set directly would make the run depend on
+    # Python's hash seed, which differs between processes.
+    for seed in sorted(seeds):
         cur[seed] = 0
         cur[seed[::-1]] = 0
     res.history.append(("SEEDS", seed_len, len(seeds)))
@@ -264,7 +276,7 @@ def run_modern(observed: Observed, table=MASSES, water=H2O, lo=350.0,
                                     best.get(canon(head), 0) + n_observed)
                     used.add(canon(head))
                     used.add(canon(tail))
-        for seq in cur - used:
+        for seq in sorted(cur - used):
             if len(seq) >= min_contig:
                 res.contigs.append((seq, best.get(seq, 0)))
         if len(kept) > beam:
