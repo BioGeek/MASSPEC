@@ -8,9 +8,7 @@ that runs it on present-day data.
 
 **This is not Dayhoff and Eck's code**, which appears to be lost. It was written from the paper's
 description and its appendix, which describes each program step by step. Where the paper is
-ambiguous, the choice made here is stated below. Prompted by
-[issue #4](https://github.com/BioGeek/awesome_de_novo_peptide_sequencing/issues/4) of the awesome
-*de novo* peptide sequencing catalog.
+ambiguous, the choice made here is stated below.
 
 ```bash
 uv sync                        # core: stdlib only
@@ -25,7 +23,7 @@ uv run pytest
 ## The 1970 method (`mspec.py`)
 
 The idea: digest a protein near-randomly, make the fragments volatile, and measure the whole mixture
-in one high-resolution spectrum. Each exact mass gives a few possible COMPOSITIONS; the sequence is
+in one high-resolution spectrum. Each exact mass gives a few possible COMPOSITIONS, the sequence is
 the one set of overlapping fragments that stays mutually consistent among thousands of spurious
 candidates. "It is somewhat like a 1000-piece jig-saw puzzle, of which all the pieces are known to be
 present, but mixed with several thousand other pieces taken at random from other puzzles."
@@ -50,7 +48,7 @@ A sequence and its reverse are one entry: masses carry no direction.
 | compositions 1 / 2 / 3 residues long, at +-0.02 | 16 / 66 / 197 (Fig. 6) | 16 / 66 / 197 |
 | tripeptide compositions after PRUNE | 93 (Fig. 7) | 93 |
 | tripeptide sequences after CQ | 172 (Fig. 8) | 172 |
-| hexapeptide sequences | 241 (Fig. 9) | 136 (245 without the hexapeptide mass check) |
+| hexapeptide / heptapeptide / nonapeptide sequences | 241 / 92 / 37 (Figs. 9, 10) | 136 / 62 / 35 |
 | 10-residue sequences | 33, "the correct number" | 33 |
 | answer at +-0.02 | both chains | both chains, A forwards, B backwards |
 | answer at +-0.05 | "could not be solved" | 4 A chains and 4 B chains, differing in Q/K |
@@ -61,12 +59,20 @@ Three things had to be decided:
   value W sits within 0.02 of G+E, the counts become 17 / 71 / 208, and a second B chain with "W" for
   "EG" survives. With the printed value everything matches, so the program evidently ran on it.
   Insulin has no tryptophan, which is why nobody noticed.
+* **The arginine mass.** The scanned Fig. 2 reads 174.11168; every mass in Figs. 3 and 4 that
+  contains R, and Fig. 5's ANFR = TJHH, need 174.11158, which is used.
 * **WEED is off by default.** The paper says the dipeptide list after CQ is "identical with the
   previous list", i.e. CQ ran on PRUNE's output; with WEED the counts are 170 and 55 instead of 172
   and 56. `run(use_weed=True)` turns it on.
-* **The 241 hexapeptides** could not be matched. Every count before (Figs. 6-8) and after (the 33
-  decapeptides) matches, as does the answer; the paper does not say enough about that stage to pin
-  the difference down. Skipping the mass check at length 6 gives 245.
+* **The short OVERLAP lists** could not be matched: the paper keeps more candidates of length 6, 7
+  and 9 than this code does. From length 10 on every printed list size matches (33, 11, 9, 8, 2, 1),
+  as do all counts before it (Figs. 6-8) and the answer; the paper does not say enough about the
+  early OVERLAP iterations to pin the difference down. Skipping the mass check at length 6 gives 245.
+
+`notebooks/masspec_1970.ipynb` walks through all of this step by step, regenerating each figure of
+the paper (Figs. 1 to 11) next to the values the paper prints, and redoes its "practical
+considerations": noise, resolution, and 100-residue proteins. It is built and executed by
+`notebooks/build_notebook.py` (`uv sync --group notebook` first).
 
 ## On present-day data (`modern.py`, `simulate.py`, `features.py`)
 
@@ -178,3 +184,9 @@ src/masspec/features.py   mzML to one mass list; readers for other tools' mass l
 src/masspec/evaluate.py   picking the answer, and scoring it against a known sequence
 scripts/study.py          the table above
 ```
+
+# Why?
+
+Prompted by
+[issue #4](https://github.com/BioGeek/awesome_de_novo_peptide_sequencing/issues/4) of the awesome
+*de novo* peptide sequencing catalog.

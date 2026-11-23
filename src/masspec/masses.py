@@ -21,7 +21,7 @@ H2O = 18.0105646863
 _FREE_1970 = {
     "A": 89.04763, "C": 121.01970, "D": 133.03745, "E": 147.05309, "F": 165.07891,
     "G": 75.03199, "H": 155.06941, "J": 131.09455, "K": 146.10544, "M": 149.05098,
-    "N": 132.05343, "O": 181.07382, "P": 115.06327, "Q": 146.06907, "R": 174.11168,
+    "N": 132.05343, "O": 181.07382, "P": 115.06327, "Q": 146.06907, "R": 174.11158,
     "S": 105.04254, "T": 119.05818, "V": 117.07891, "W": 188.09489,
 }
 # W is as PRINTED, 188.09489, although free tryptophan weighs 204.0899 (C11H12N2O2): the paper's
@@ -30,7 +30,11 @@ _FREE_1970 = {
 # and 71 dipeptide compositions instead of the paper's 16 and 66, and a second B chain with "W" for
 # "EG" survives. With the printed value both disappear. Insulin has no tryptophan, so the misprint
 # was invisible to its authors.
-MASSES_1970 = {aa: round(m - H2O_1970, 5) for aa, m in _FREE_1970.items()}
+# R is 174.11158: the scan of Fig. 2 is smudged there, and every mass in Figs. 3 and 4 that contains
+# arginine, as well as Fig. 5's ANFR = TJHH, needs this value.
+# Not rounded: the paper computes in free-acid masses (sum minus water per bond), so rounding each
+# residue would put the last digit off by one.
+MASSES_1970 = {aa: m - H2O_1970 for aa, m in _FREE_1970.items()}
 
 MASSES = {
     "G": 57.02146372, "A": 71.03711379, "S": 87.03202841, "P": 97.05276385, "V": 99.06841391,
