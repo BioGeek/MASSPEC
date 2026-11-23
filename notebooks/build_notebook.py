@@ -457,18 +457,73 @@ def accept(sequence):
     return sequence_mass > 1000.0 or observed.contains(sequence_mass)
 
 
-sizes, finished = {}, {}
+def accept_any(sequence):
+    # no mass check: the candidates as OVERLAP builds them
+    return True
+
+
+kept, candidates, sizes, finished = {}, {}, {}, {}
 current, length = sequences[4], 5
 while current:
+    candidates[length], _ = overlap_step(current, length, accept_any)
     current, done = overlap_step(current, length, accept)
+    kept[length] = current
     sizes[length] = len(current)
     finished[length - 1] = sorted(done)
     length += 1
 
-# The list sizes Figs. 9 to 11 print, by fragment length.
-paper = {
-    6: 241, 7: 92, 8: 49, 9: 37, 10: 33, 21: 11, 22: 9, 23: 8, 29: 2, 30: 1,
+# The list sizes Figs. 10 and 11 print, by fragment length. (Fig. 9's 241
+# counts hexapeptides BEFORE their mass check; see below.)
+paper = {7: 92, 8: 49, 9: 37, 10: 33, 21: 11, 22: 9, 23: 8, 29: 2, 30: 1}
+""")
+
+add_markdown(r"""
+### Fig. 9: the input fragments of length 6
+
+The caption says "All possible ordered fragments 6 long. Masses of these
+fragments were observed." The listing says otherwise: its heading is INPUT
+FRAGMENTS, and its first row already holds ACGEVA, whose mass (548.226) is not
+in the data. Fig. 9 lists the hexapeptides as OVERLAP builds them from the
+pentapeptides, BEFORE their own masses are checked. So does this cell. As in
+Fig. 8, each is written in the direction that sorts first.
+""")
+
+add_code(r"""
+hexapeptides = sorted(candidates[6])
+print("Insulin 'A' and 'B', Bovine")
+print("Maximum Mass Measured = 1000.0")
+print(
+    f"Input Fragments, There Are {len(hexapeptides)} Fragments of Length 6"
+    "   (paper: 241)\n"
+)
+for row in range(0, len(hexapeptides), 10):
+    chunk = hexapeptides[row:row + 10]
+    print("   " + " ".join(f"{entry:<7}" for entry in chunk).rstrip())
+# The paper's first four rows, as printed.
+paper_fig9_start = '''
+ACCQEV ACGEVA ACGEVG ACGEVJ ACGEVN ACSVSS ACVSSS AEGCVJ AEGJVC AEGVCJ
+AEGVJC AEJGVC AEJVGC AERCJO AERJCO AEVAVC AEVGCJ AEVGJC AEVJGC AEVJHS
+AGJEVA AJEGVC AJEVGC AJGEVA AJOJVC AKPTOF ASCVSA ASCVSS ASVCSJ ASVCSS
+AVAEVA AVCSSS AVSCSS CACGEV CACSVS CACVSS CAGEVJ CASCVS CASVCS CAVCSS
+'''.split()
+same = hexapeptides[:40] == paper_fig9_start
+print(f"\nFirst forty identical to the paper's first four rows: {same}")
+true_hexapeptides = {
+    canon(chain[start:start + 6])
+    for chain in (INSULIN_A, INSULIN_B)
+    for start in range(len(chain) - 5)
 }
+print(
+    f"Of the {len(hexapeptides)}, {len(kept[6])} have an observed mass; all "
+    f"{len(kept[6] & true_hexapeptides)} true hexapeptides are among them."
+)
+""")
+
+add_markdown(r"""
+### Figs. 10 and 11: the iterations
+""")
+
+add_code(r"""
 print("Insulin 'A' and 'B', Bovine")
 print("Maximum Mass Measured = 1000.0\n")
 for length in sorted(sizes):
@@ -500,12 +555,41 @@ The program continues until one sequence 30 long remains: the B chain, here
 written backwards.
 
 From length 10 on, every list size the paper prints matches. The short lengths
-do not: the paper keeps **241** hexapeptides (Fig. 9), 92 heptapeptides, 49
-octapeptides and 37 nonapeptides (Fig. 10), against 136, 62, 40 and 35 here.
-The gap closes as N grows, and the lists before (Figs. 6-8) and the answer
-agree exactly, so the original evidently kept more candidates at those lengths,
-by a rule the paper does not describe closely enough to reproduce. (Skipping
-the mass check at length 6 alone gives 245 hexapeptides.)
+do not: Fig. 10 keeps 92 heptapeptides, 49 octapeptides and 37 nonapeptides,
+against 62, 40 and 35 here. Fig. 9 shows why. The original built its
+heptapeptides from all of Fig. 9's input hexapeptides, the ones whose mass was
+never observed included, although the text says each length is checked. Skip
+that one check, and check every other length, and the counts follow the paper's
+closely:
+""")
+
+add_code(r"""
+def accept_unless_six(sequence):
+    # the original's evident rule: no mass check for the hexapeptides
+    return len(sequence) == 6 or accept(sequence)
+
+
+sizes_as_printed = {}
+current, length = sequences[4], 5
+while current:
+    current, _ = overlap_step(current, length, accept_unless_six)
+    sizes_as_printed[length] = len(current)
+    length += 1
+
+paper_with_fig9 = {6: 241, **paper}
+print(f"{'Length':>6}{'Text Rule':>11}{'6 Unchecked':>13}{'Paper':>7}")
+for length in sorted(paper_with_fig9):
+    print(
+        f"{length:6}{sizes[length]:11}{sizes_as_printed[length]:13}"
+        f"{paper_with_fig9[length]:7}"
+    )
+""")
+
+add_markdown(r"""
+Within one to four of every count the paper prints, and exact from length 9
+on. The small remainder is plausibly the extra digits the original carried in
+its masses (see Figs. 3 and 4): a candidate within a hair of the ±0.02 edge can
+fall either side.
 """)
 
 add_code(r"""
@@ -516,11 +600,19 @@ axes.plot(
     [sizes[length] for length in lengths],
     color="#2563eb",
     lw=2,
-    label="this reimplementation",
+    label="every length checked (the paper's text)",
+)
+axes.plot(
+    lengths,
+    [sizes_as_printed[length] for length in lengths],
+    color="#2563eb",
+    lw=1.5,
+    linestyle="--",
+    label="hexapeptides unchecked (its figures)",
 )
 axes.scatter(
-    list(paper),
-    list(paper.values()),
+    list(paper_with_fig9),
+    list(paper_with_fig9.values()),
     color="#dc2626",
     zorder=3,
     s=36,
