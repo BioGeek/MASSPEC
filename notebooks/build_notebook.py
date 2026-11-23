@@ -63,7 +63,7 @@ from itertools import combinations_with_replacement
 import matplotlib.pyplot as plt
 
 from masspec.fragments import add_noise, fragen, ideal_masses
-from masspec.masses import _FREE_1970, H2O_1970, MASSES, MASSES_1970
+from masspec.masses import _FREE_1970, H2O, H2O_1970, MASSES, MASSES_1970
 from masspec.mspec import (
     Observed,
     canon,
@@ -112,7 +112,7 @@ print(
     f"{'difference':>12}"
 )
 for amino_acid in sorted(_FREE_1970):
-    now = modern[amino_acid] + 18.0105647
+    now = modern[amino_acid] + H2O  # free amino acid = residue + water
     printed = _FREE_1970[amino_acid]
     print(f"{amino_acid:4}{printed:14.5f}{now:20.5f}{printed - now:12.5f}")
 """)
@@ -428,7 +428,9 @@ also reads as a W.
 """)
 
 add_code(r"""
-masses_true_w = dict(MASSES_1970, W=round(204.0899 - H2O_1970, 5))
+# Free tryptophan at its true mass, as a residue of the paper's table.
+free_tryptophan = MASSES["W"] + H2O
+masses_true_w = dict(MASSES_1970, W=free_tryptophan - H2O_1970)
 compositions_true_w = masfrg(observed, masses_true_w, H2O_1970, 4)
 print(
     "with the printed W:",

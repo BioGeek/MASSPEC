@@ -26,8 +26,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-PROTON = 1.00727646688
-C13 = 1.0033548378
+from .masses import ISOTOPE_SPACING, PROTON
 
 
 def envelopes(mz, intensity, ppm=10.0, max_charge=6, min_rel=0.01,
@@ -57,7 +56,7 @@ def envelopes(mz, intensity, ppm=10.0, max_charge=6, min_rel=0.01,
         if peak in used:
             continue
         for charge in range(max_charge, 0, -1):
-            step = C13 / charge
+            step = ISOTOPE_SPACING / charge
             n1 = find(mz[peak] + step)
             if n1 < 0:
                 continue

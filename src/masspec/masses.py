@@ -17,8 +17,16 @@ Two tables:
   else.
 """
 
+# Monoisotopic masses (Da) of what a peptide gains or loses besides its
+# residues. H2O_1970 is the value printed in the paper's Fig. 2; the rest are
+# present-day (NIST atomic masses, Unimod modification deltas).
 H2O_1970 = 18.01056
-H2O = 18.0105646863
+H2O = 18.0105646863             # water: added once per linear peptide
+PROTON = 1.00727646688          # a proton: m/z = (M + z * PROTON) / z
+ISOTOPE_SPACING = 1.0033548378  # 13C - 12C: spacing of an isotope envelope
+CARBAMIDOMETHYL = 57.021464     # Unimod 4, alkylated cysteine
+OXIDATION = 15.994915           # Unimod 35, e.g. oxidised methionine
+DEAMIDATION = 0.984016          # Unimod 7, asparagine or glutamine
 
 # Fig. 2 of the paper: free amino acid masses (a.m.u.).
 _FREE_1970 = {
@@ -55,14 +63,11 @@ MASSES = {
 # Common modifications, as extra residue letters the modern mode can switch
 # on. Lower case so they never collide with an amino acid.
 MODIFIED = {
-    # carbamidomethyl Cys (fixed, after alkylation)
-    "c": MASSES["C"] + 57.021464,
-    "m": MASSES["M"] + 15.994915,   # oxidised Met
-    "n": MASSES["N"] + 0.984016,    # deamidated Asn
-    "q": MASSES["Q"] + 0.984016,    # deamidated Gln
+    "c": MASSES["C"] + CARBAMIDOMETHYL,  # fixed, after alkylation
+    "m": MASSES["M"] + OXIDATION,
+    "n": MASSES["N"] + DEAMIDATION,
+    "q": MASSES["Q"] + DEAMIDATION,
 }
-
-ISOTOPE_SPACING = 1.0033548378  # 13C - 12C
 
 
 def peptide_mass(seq, table=MASSES, water=H2O):

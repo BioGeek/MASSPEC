@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import random
 
-from .masses import H2O, MASSES, peptide_mass
+from .masses import H2O, ISOTOPE_SPACING, MASSES, peptide_mass
 
 
 def fragen(chains, max_len=9):
@@ -50,6 +50,6 @@ def add_noise(masses, n_random=0, lo=100.0, hi=1000.0, isotopes=False,
     rng = random.Random(seed)
     out = list(masses)
     if isotopes:
-        out += [mass + 1.0033548378 for mass in masses]
+        out += [mass + ISOTOPE_SPACING for mass in masses]
     out += [rng.uniform(lo, hi) for _ in range(n_random)]
     return sorted(out)

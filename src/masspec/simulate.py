@@ -27,7 +27,14 @@ import math
 import random
 from dataclasses import dataclass, field
 
-from .masses import H2O, ISOTOPE_SPACING, MASSES, MODIFIED, normalise
+from .masses import (
+    H2O,
+    ISOTOPE_SPACING,
+    MASSES,
+    MODIFIED,
+    OXIDATION,
+    normalise,
+)
 
 # Relative cleavage rate after each residue (the C-terminal side of the
 # bond), per enzyme. The values are deliberately coarse: what matters to
@@ -118,7 +125,7 @@ def simulate(protein, enzyme="pepsin", p_max=0.35, background=0.03,
         detected.append((start, end, peptide, abundance / top))
         variants = [mass]
         if "M" in peptide and rng.random() < met_ox:
-            variants.append(mass + 15.994915)
+            variants.append(mass + OXIDATION)
         if rng.random() < isotope_errors:
             variants.append(mass + ISOTOPE_SPACING)
         for variant in variants:
