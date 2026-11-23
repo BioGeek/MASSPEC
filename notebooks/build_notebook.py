@@ -403,22 +403,44 @@ and its reverse are one entry: "AEJ means both AEJ and JEA".
 add_code(r"""
 sequences = cq(pruned)
 print("Insulin of Beef 'A' and 'B'   Limits -.02 to +.02\n=CQ=")
-print("Completely Sequenced Fragments Which May Be Present\n")
-for length in range(1, 5):
-    print(f"length {length}: {len(sequences[length])} sequences")
-print(f"\nsequenced tripeptides: {len(sequences[3])} (paper: 172)")
-true_tripeptides = {
-    canon(fragment)
-    for fragment in fragen([INSULIN_A, INSULIN_B], 3)
-    if len(fragment) == 3
+print("Completely Sequenced Fragments Which May Be Present")
+for length in (1, 2, 3):
+    listed = sorted(sequences[length])
+    print()
+    for row in range(0, len(listed), 10):
+        chunk = listed[row:row + 10]
+        print("   " + " ".join(f"{entry:<5}" for entry in chunk).rstrip())
+""")
+
+add_code(r"""
+true_sequences = {
+    length: {
+        canon(fragment)
+        for fragment in fragen([INSULIN_A, INSULIN_B], 4)
+        if len(fragment) == length
+    }
+    for length in range(1, 5)
 }
 print(
-    f"of which true: {len(sequences[3] & true_tripeptides)} "
-    f"of {len(true_tripeptides)}"
+    f"{'Length':>6}{'Sequences':>11}{'True Ones':>11}{'True Kept':>11}"
+    f"{'Paper':>7}"
 )
+for length, paper in zip(range(1, 5), (16, 56, 172, None)):
+    kept = sequences[length] & true_sequences[length]
+    print(
+        f"{length:6}{len(sequences[length]):11}"
+        f"{len(true_sequences[length]):11}{len(kept):11}"
+        f"{paper if paper else '':>7}"
+    )
 """)
 
 add_markdown(r"""
+The paper gives 172 tripeptides in its caption, and 56 dipeptides implicitly:
+its dipeptide list after CQ is "identical with the previous list (Fig. 7)",
+which is PRUNE's 56. Every true sequence survives CQ (41, 46 and 45 of them),
+so nothing real has been lost yet; what CQ removes is orderings of spurious
+compositions that the masses of their own sub-sequences contradict.
+
 ## Figs. 9 to 11: OVERLAP, growing the chain
 
 From here on the candidates are built rather than looked up. Two sequences of
