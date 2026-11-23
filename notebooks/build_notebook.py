@@ -209,15 +209,22 @@ To go back from a mass to what could have made it, the program needs every
 composition sorted by mass. PEPMS tabulates them (only up to four residues:
 longer ones are generated later, from overlaps). Fig. 5 shows the stretch from
 506.24 to 507.27. Each line is a group of compositions with identical formulas;
-the step column is the gap to the previous mass.
+the step column is the gap to the previous mass. Unlike Figs. 1 and 4, which
+are alphabetical, Fig. 5 writes each composition lightest residue first: VNQF
+is V (99) < N (114) < Q (128) < F (147). So does this table.
 """)
 
 add_code(r"""
+def lightest_first(residue):
+    # Fig. 5's order within a composition: by residue mass, then letter.
+    return (MASSES_1970[residue], residue)
+
+
 table = {}
 for length in range(1, 5):
     for residues in combinations_with_replacement(sorted(MASSES_1970), length):
         table.setdefault(round(peptide_mass(residues), 5), []).append(
-            "".join(residues)
+            "".join(sorted(residues, key=lightest_first))
         )
 window = sorted(value for value in table if 506.24 <= value <= 507.27)
 previous = None
@@ -234,7 +241,9 @@ add_markdown(r"""
 The groups are the paper's, entry for entry: VNQF with JNNF at 506.24863, TQKM
 with CKKE, then PPFF, PJMF and JJMM, and ANFR, GQFR and TJHH together at
 506.25986, the paper's own example of a degeneracy (identical elemental
-formulas). The masses here are one unit higher in the fifth decimal, for the
+formulas). Within a group the paper's order follows no rule we could find
+(probably the order its program generated them); here it is alphabetical. The
+masses here are one unit higher in the fifth decimal, for the
 reason given under Fig. 4. At a resolution of 0.02 a.m.u. many of these
 neighbouring groups also blur together.
 
