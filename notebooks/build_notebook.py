@@ -341,6 +341,9 @@ for length in (1, 2, 3):
     for row in range(0, len(listed), 10):
         chunk = listed[row:row + 10]
         print("   " + " ".join(f"{entry:<5}" for entry in chunk).rstrip())
+""")
+
+add_code(r"""
 print(f"\n{'Length':>6}{'Fragments':>11}{'True Ones':>11}{'Paper':>7}")
 for length, paper in zip(range(1, 5), (16, 66, 197, None)):
     print(
