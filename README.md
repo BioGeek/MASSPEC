@@ -157,18 +157,19 @@ uv run masspec run data/raw/Mn_0s_1.mzML --ppm 3 --no-alkylation \
 **Calibration without the answer.** The run's masses sit about 5 ppm low. In a pepsin digest pepsin
 digests itself, its sequence is public (UniProt P00791), and its autolysis fragments are in every
 run, so `--calibrant` estimates the offset from them, never from the protein being sequenced:
--5.04 ppm, with 275 pepsin matches in the peak 2-ppm bin against about 49 in a background bin.
+-5.06 ppm, with 285 pepsin matches in the peak 2-ppm bin against about 54 in a background bin.
 
-**What the run contains.** 5021 MS1 features. After calibration, 174 match a myoglobin fragment
-within 2 ppm, of which about 33 would match by chance, so roughly 140 real myoglobin fragments,
-mostly long ones (up to 49 residues). Pepsin's own fragments account for 396.
+**What the run contains.** 5440 MS1 features. After calibration, 180 match a myoglobin fragment
+within 2 ppm, of which about 35 would match by chance, so roughly 145 real myoglobin fragments,
+mostly long ones (up to 49 residues). Pepsin's own fragments account for 408.
 
 **What MASSPEC makes of it: nothing.** No residue of myoglobin (or of pepsin) is recovered, at 3 or
-5 ppm. Removing every noise mass does not help: on the 174 myoglobin-matching masses alone, recall
-is 3%.
+5 ppm. Removing every noise mass does not help: on the 180 myoglobin-matching masses alone, recall
+is 6%, which is what the same contigs score against shuffled myoglobin (up to 6% over ten
+shuffles): chance.
 
 The study above explains why. The simulated pepsin digest of the same protein yields about 2000
-detectable fragments; this run holds about 140, some 7%. That is the "fragments missed" axis taken
+detectable fragments; this run holds about 145, some 7%. That is the "fragments missed" axis taken
 far past the 60% at which the method had already collapsed. Dayhoff and Eck's method needs many
 overlapping and nested fragments, including short ones: about six masses per residue (302 for
 insulin's 51) in their insulin problem. An HDX peptide map is built for the opposite purpose: a

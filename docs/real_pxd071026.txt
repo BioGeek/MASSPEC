@@ -1,7 +1,7 @@
-5021 MS1 features; offset from pepsin autolysis peptides -5.04 ppm (275 matches in the peak bin, 49 per background bin)
-features matching a myoglobin fragment within 2 ppm: 174 (by chance, at +0.3 Da: 33); a pepsin fragment: 396
-reconstruction at 3.0 ppm vs myoglobin: {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 39, 'residues_output': 382}
-reconstruction at 3.0 ppm vs pepsin:    {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 39, 'residues_output': 382}
-reconstruction at 5.0 ppm vs myoglobin: {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 38, 'residues_output': 387}
-reconstruction at 5.0 ppm vs pepsin:    {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 38, 'residues_output': 387}
-oracle, the 174 myoglobin-matching masses alone: {'recall_exact': 0.03, 'recall_with_equivalents': 0.03, 'precision_exact': 0.02, 'precision_with_equivalents': 0.02, 'contigs': 34, 'residues_output': 246}
+5440 MS1 features; offset from pepsin autolysis peptides -5.06 ppm (285 matches in the peak bin, 54 per background bin)
+features matching a myoglobin fragment within 2 ppm: 180 (by chance, at +0.3 Da: 35); a pepsin fragment: 408
+reconstruction at 3.0 ppm vs myoglobin: {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 39, 'residues_output': 377}
+reconstruction at 3.0 ppm vs pepsin:    {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 39, 'residues_output': 377}
+reconstruction at 5.0 ppm vs myoglobin: {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 36, 'residues_output': 374}
+reconstruction at 5.0 ppm vs pepsin:    {'recall_exact': 0.0, 'recall_with_equivalents': 0.0, 'precision_exact': 0.0, 'precision_with_equivalents': 0.0, 'contigs': 36, 'residues_output': 374}
+oracle, the 180 myoglobin-matching masses alone: {'recall_exact': 0.06, 'recall_with_equivalents': 0.06, 'precision_exact': 0.04, 'precision_with_equivalents': 0.04, 'contigs': 36, 'residues_output': 250}

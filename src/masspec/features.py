@@ -85,7 +85,7 @@ def masses_from_mzml(path, ppm=10.0, max_charge=6, min_scans=2,
     from pyteomics import mzml
     raw = []
     with mzml.read(str(path)) as reader:
-        for spec in reader:
+        for scan, spec in enumerate(reader):
             if spec.get("ms level") != 1:
                 continue
             if rt_range:
@@ -95,28 +95,38 @@ def masses_from_mzml(path, ppm=10.0, max_charge=6, min_scans=2,
             for mass, inten, charge in envelopes(spec["m/z array"],
                                                  spec["intensity array"],
                                                  ppm, max_charge):
-                raw.append((mass, inten, charge))
+                raw.append((mass, inten, charge, scan))
     return merge(raw, ppm, min_scans)
 
 
 def merge(raw, ppm=10.0, min_scans=2):
-    """Cluster per-scan masses within `ppm`: intensity-weighted mean, scan
-    count, charges seen."""
-    raw = sorted(raw)
+    """Cluster per-scan masses within `ppm`.
+
+    `raw` is [(mass, intensity, charge, scan)]. Taken lightest first, a
+    cluster holds every mass within 2 x `ppm` of its FIRST member: one
+    species measured to within +-`ppm` of its true mass spreads over at most
+    that, and a run of close masses cannot chain into anything wider. A
+    cluster is kept when it was seen in `min_scans` distinct scans: one scan
+    seeing the same peptide at two charges is still one scan. Returns
+    [(intensity-weighted mean mass, total intensity, distinct scans,
+    charges seen)].
+    """
     out, group = [], []
 
     def flush():
-        if len(group) >= min_scans:
+        scans = {member[3] for member in group}
+        if len(scans) >= min_scans:
             weight = sum(member[1] for member in group)
             out.append((
                 sum(member[0] * member[1] for member in group) / weight,
                 weight,
-                len(group),
+                len(scans),
                 sorted({member[2] for member in group}),
             ))
 
-    for record in raw:
-        if group and record[0] - group[-1][0] > record[0] * ppm * 1e-6:
+    for record in sorted(raw):
+        if (group and record[0] - group[0][0]
+                > 2 * group[0][0] * ppm * 1e-6):
             flush()
             group = []
         group.append(record)

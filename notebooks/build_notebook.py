@@ -1014,9 +1014,10 @@ else:
 
 add_markdown(r"""
 Nothing. Not because of accuracy: after calibration the masses are good to
-about a ppm. And not because of noise: with every noise mass removed the result
-is no better. The run simply holds too few of the fragments the method needs:
-about 140 real myoglobin fragments, mostly long, where the simulated pepsin
+about a ppm. And not because of noise: with every noise mass removed, the few
+percent recovered are what the same contigs also score against a shuffled
+myoglobin. The run simply holds too few of the fragments the method needs:
+about 145 real myoglobin fragments, mostly long, where the simulated pepsin
 digest of the same protein yields about 2000. Dayhoff and Eck's insulin problem
 had about six masses per residue; this run has about one. An HDX peptide map is
 built for the opposite purpose to MASSPEC's: a modest set of well-separated
