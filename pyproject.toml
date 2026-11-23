@@ -5,6 +5,9 @@ description = "MASSPEC (Dayhoff and Eck, 1970) reverse-engineered from the paper
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+real = ["pyteomics>=4.7", "lxml>=5", "numpy>=1.26"]
+
 [project.scripts]
 masspec = "masspec.cli:main"
 
