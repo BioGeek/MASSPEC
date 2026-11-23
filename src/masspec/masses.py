@@ -30,8 +30,6 @@ _FREE_1970 = {
 # and 71 dipeptide compositions instead of the paper's 16 and 66, and a second B chain with "W" for
 # "EG" survives. With the printed value both disappear. Insulin has no tryptophan, so the misprint
 # was invisible to its authors.
-# R is 174.11158: the scan of Fig. 2 is smudged there, and every mass in Figs. 3 and 4 that contains
-# arginine, as well as Fig. 5's ANFR = TJHH, needs this value.
 # Not rounded: the paper computes in free-acid masses (sum minus water per bond), so rounding each
 # residue would put the last digit off by one.
 MASSES_1970 = {aa: m - H2O_1970 for aa, m in _FREE_1970.items()}

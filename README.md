@@ -59,8 +59,6 @@ Three things had to be decided:
   value W sits within 0.02 of G+E, the counts become 17 / 71 / 208, and a second B chain with "W" for
   "EG" survives. With the printed value everything matches, so the program evidently ran on it.
   Insulin has no tryptophan, which is why nobody noticed.
-* **The arginine mass.** The scanned Fig. 2 reads 174.11168; every mass in Figs. 3 and 4 that
-  contains R, and Fig. 5's ANFR = TJHH, need 174.11158, which is used.
 * **WEED is off by default.** The paper says the dipeptide list after CQ is "identical with the
   previous list", i.e. CQ ran on PRUNE's output; with WEED the counts are 170 and 55 instead of 172
   and 56. `run(use_weed=True)` turns it on.

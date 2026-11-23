@@ -95,8 +95,7 @@ md(r"""
 ## Figs. 3 and 4: MASFRG, the masses of the fragments
 
 MASFRG computes each fragment's mass. Fig. 3 lists the B chain's dipeptides, Fig. 4 its
-octapeptides; the paper's values are copied below (its Fig. 4 prints "951 a48426" for row 15, an
-OCR-legible smudge of 951.48426).
+octapeptides; the paper's values are copied below.
 """)
 
 code(r"""
@@ -125,9 +124,7 @@ for k, (f, p) in enumerate(zip(eight, paper_fig4), 1):
 md(r"""
 Every dipeptide mass agrees with the paper exactly, and every octapeptide mass to one unit in the
 fifth decimal: the paper's are uniformly one lower, as if the program truncated where Python rounds.
-(Matching needed
-one correction to the scanned mass table: arginine is 174.11158, not 174.11168 as the smudged Fig. 2
-reads; every mass here that contains R confirms it.) The table also shows why the method is hard:
+The table also shows why the method is hard:
 rows 13 and 14 are the same composition, and many different peptides share a mass.
 
 ## Fig. 5: PEPMS, the table of all peptide masses
@@ -152,11 +149,10 @@ print("\nANFR - TJHH =", f"{mass('ANFR') - mass('TJHH'):.5f}", "   JNNF - VNQF =
 """)
 
 md(r"""
-The paper's own example from this range, ANFR = TJHH, is there: identical masses, because the two
-groups have the same elemental formula. So are the paper's first entries, JNNF with VNQF at 506.24863
-(the scan reads "506.24663" and "VNDF", but its own increment column puts the entry at 506.24863), and
-PPFF, PJMF and JJMM after it. At a resolution of 0.02 a.m.u. many of these neighbouring groups also
-blur together.
+The groups are the paper's, entry for entry: VNQF with JNNF at 506.24863, TQKM with CKKE, then
+PPFF, PJMF and JJMM, and ANFR, GQFR and TJHH together at 506.25986, the paper's own example of a
+degeneracy (identical elemental formulas). As in Fig. 4, the masses here are one unit higher in the
+fifth decimal. At a resolution of 0.02 a.m.u. many of these neighbouring groups also blur together.
 
 ## The input: one spectrum of ideal masses
 
