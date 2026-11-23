@@ -6,12 +6,13 @@ from masspec.features import C13, PROTON, envelopes, merge  # noqa: E402
 
 def test_envelope_finds_charge_and_monoisotopic_mass():
     mass = 1234.5678
-    z = 2
-    mono = mass / z + PROTON
-    mz = [mono, mono + C13 / z, mono + 2 * C13 / z, 400.0]
-    it = [100.0, 70.0, 30.0, 5.0]
-    found = envelopes(mz, it, ppm=5)
-    assert any(abs(m - mass) < 1e-3 and c == 2 for m, _, c in found)
+    charge = 2
+    mono = mass / charge + PROTON
+    mz = [mono, mono + C13 / charge, mono + 2 * C13 / charge, 400.0]
+    intensities = [100.0, 70.0, 30.0, 5.0]
+    found = envelopes(mz, intensities, ppm=5)
+    assert any(abs(found_mass - mass) < 1e-3 and found_charge == 2
+               for found_mass, _, found_charge in found)
 
 
 def test_merge_requires_two_scans():

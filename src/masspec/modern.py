@@ -1,42 +1,49 @@
 """MASSPEC taken to present-day data.
 
-The 1970 method keeps a candidate only when EVERY fragment inside it was observed, and treats masses
-above the instrument's limit as observed. Both assumptions fail on an LC-MS run of a non-specific
-digest: fragments below ~350 Da are hardly ever seen, and many inside the window are missed.
+The 1970 method keeps a candidate only when EVERY fragment inside it was
+observed, and treats masses above the instrument's limit as observed. Both
+assumptions fail on an LC-MS run of a non-specific digest: fragments below
+~350 Da are hardly ever seen, and many inside the window are missed.
 
-This keeps the paper's phases and data structures, and changes three things, each a direct
-generalisation of something in the paper:
+This keeps the paper's phases and data structures, and changes three things,
+each a direct generalisation of something in the paper:
 
-1. **An observable window at both ends.** The paper assumed every mass above 1000 a.m.u. observed,
-   because its instrument could not measure it. Here masses outside ``[lo, hi]`` are assumed
-   observed for the same reason: below ``lo`` the fragment cannot be seen, so its absence says
-   nothing. That lets the bottom-up phases (MASFRG, PRUNE, CQ) start without the short fragments.
-2. **Support instead of completeness.** A candidate of length N is judged on the fragments that END
-   at its last residue (its suffixes): exactly the fragments the extension introduces. The paper
-   requires all of them observed; here it is enough that a fraction ``support`` of those with a mass
-   in the window, and at most ``support_len`` residues long, were observed. Long fragments are rare in
-   a real digest, so counting them would sink true sequences.
-3. **A beam.** With support below 1, spurious candidates survive more easily, and the lists can grow
-   without bound. The paper hit the same wall ("the storage is exceeded and the problem must be
-   terminated"). Here the ``beam`` best-supported candidates of each length are kept.
+1. **An observable window at both ends.** The paper assumed every mass above
+   1000 a.m.u. observed, because its instrument could not measure it. Here
+   masses outside ``[lo, hi]`` are assumed observed for the same reason:
+   below ``lo`` the fragment cannot be seen, so its absence says nothing.
+   That lets the bottom-up phases (MASFRG, PRUNE, CQ) start without the short
+   fragments.
+2. **Support instead of completeness.** A candidate of length N is judged on
+   the fragments that END at its last residue (its suffixes): exactly the
+   fragments the extension introduces. The paper requires all of them
+   observed; here it is enough that a fraction ``support`` of those with a
+   mass in the window, and at most ``support_len`` residues long, were
+   observed. Long fragments are rare in a real digest, so counting them would
+   sink true sequences.
+3. **A beam.** With support below 1, spurious candidates survive more easily,
+   and the lists can grow without bound. The paper hit the same wall ("the
+   storage is exceeded and the problem must be terminated"). Here the
+   ``beam`` best-supported candidates of each length are kept.
 
-Masses are matched within a ppm tolerance. Modifications enter as extra residue letters (see
-`masses.MODIFIED`). The result is a set of contigs: with incomplete data a chain breaks where the
-digest left no overlapping evidence, so the protein comes back in pieces whose order masses alone
-cannot give.
+Masses are matched within a ppm tolerance. Modifications enter as extra
+residue letters (see `masses.MODIFIED`). The result is a set of contigs: with
+incomplete data a chain breaks where the digest left no overlapping evidence,
+so the protein comes back in pieces whose order masses alone cannot give.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import combinations_with_replacement
 
-from .masses import MASSES, H2O
+from .masses import H2O, MASSES
 from .mspec import Observed, canon, cq, prune
 
 
 @dataclass
 class ModernResult:
-    contigs: list = field(default_factory=list)     # (sequence, support score), longest first
+    # (sequence, support score), longest first
+    contigs: list = field(default_factory=list)
     history: list = field(default_factory=list)
     converged: bool = True
     reason: str = ""
@@ -48,167 +55,226 @@ class FastObserved:
     def __init__(self, masses, tol_ppm):
         self.tol_ppm = tol_ppm
         self.masses = sorted(masses)
-        self.width = max(self.masses) * tol_ppm * 1e-6 if self.masses else 1.0
+        if self.masses:
+            self.width = max(self.masses) * tol_ppm * 1e-6
+        else:
+            self.width = 1.0
         self.bins = {}
-        for m in self.masses:
-            self.bins.setdefault(int(m / self.width), []).append(m)
+        for mass in self.masses:
+            self.bins.setdefault(int(mass / self.width), []).append(mass)
 
-    def contains(self, m):
-        return self.match(m) is not None
+    def contains(self, mass):
+        return self.match(mass) is not None
 
-    def match(self, m):
-        """The observed mass matching `m` within the tolerance (the nearest), or None."""
-        w = m * self.tol_ppm * 1e-6
-        k = int(m / self.width)
+    def match(self, mass):
+        """The observed mass matching `mass` within the tolerance.
+
+        The nearest one, or None.
+        """
+        tolerance = mass * self.tol_ppm * 1e-6
+        centre = int(mass / self.width)
         best = None
-        for b in (k - 1, k, k + 1):
-            for x in self.bins.get(b, ()):
-                d = abs(x - m)
-                if d <= w and (best is None or d < abs(best - m)):
-                    best = x
+        for bin_index in (centre - 1, centre, centre + 1):
+            for candidate in self.bins.get(bin_index, ()):
+                distance = abs(candidate - mass)
+                if distance <= tolerance and (
+                        best is None or distance < abs(best - mass)):
+                    best = candidate
         return best
 
     def __len__(self):
         return len(self.masses)
 
 
-def run_extend(observed, table=MASSES, water=H2O, lo=350.0, hi=6000.0, seed_len=4, support=0.5,
-               support_len=20, min_hits=1, beam=2000, min_contig=6, max_protein=3000) -> ModernResult:
-    """Grow chains one residue at a time instead of overlapping fixed-length windows.
+def _by_score_descending(item):
+    """Sort key for (chain, (score, used)) items: highest score first."""
+    return -item[1][0]
 
-    OVERLAP builds a length-N candidate only from two surviving length N-1 windows, so one missing
-    window anywhere breaks every chain through it. Here a chain is extended by any residue whose
-    suffixes (the fragments ending at the new residue) are supported: at least `min_hits` observed,
-    and at least a fraction `support` of those in the window. Both directions are grown, since a
-    seed may sit anywhere in the protein. The seeds are MASSPEC's own: CQ's sequences of
-    `seed_len` residues whose mass, when in the window, was observed.
+
+def _by_value_descending(item):
+    """Sort key for (key, score) items: highest score first."""
+    return -item[1]
+
+
+def _by_score_then_length(contig):
+    """Sort key for (sequence, score): highest score, then longest, first."""
+    return (-contig[1], -len(contig[0]))
+
+
+def _by_length_then_score(contig):
+    """Sort key for (sequence, score): longest, then highest score, first."""
+    return (-len(contig[0]), -contig[1])
+
+
+def run_extend(observed, table=MASSES, water=H2O, lo=350.0, hi=6000.0,
+               seed_len=4, support=0.5, support_len=20, min_hits=1,
+               beam=2000, min_contig=6, max_protein=3000) -> ModernResult:
+    """Grow chains one residue at a time, not by overlapping windows.
+
+    The 1970 method overlaps fixed-length windows. OVERLAP builds a length-N
+    candidate only from two surviving length N-1 windows, so one missing
+    window anywhere breaks every chain through it. Here a chain is extended
+    by any residue whose suffixes (the fragments ending at the new residue)
+    are supported: at least `min_hits` observed, and at least a fraction
+    `support` of those in the window. Both directions are grown, since a seed
+    may sit anywhere in the protein. The seeds are MASSPEC's own: CQ's
+    sequences of `seed_len` residues whose mass, when in the window, was
+    observed.
     """
     res = ModernResult()
     letters = sorted(table)
-    mass = lambda s: sum(table[a] for a in s) + water
-    seen = lambda m: m < lo or m > hi or observed.contains(m)
-    comps = {n: {c for c in combinations_with_replacement(letters, n) if seen(mass(c))}
-             for n in range(1, seed_len + 1)}
+
+    def mass_of(seq):
+        return sum(table[residue] for residue in seq) + water
+
+    def seen(mass):
+        return mass < lo or mass > hi or observed.contains(mass)
+
+    comps = {
+        length: {comp
+                 for comp in combinations_with_replacement(letters, length)
+                 if seen(mass_of(comp))}
+        for length in range(1, seed_len + 1)
+    }
     seqs = cq(prune(comps, 2))
-    seeds = {s for s in seqs[seed_len] if seen(mass(s))}
+    seeds = {seq for seq in seqs[seed_len] if seen(mass_of(seq))}
     cur = {}
-    for s in seeds:
-        cur[s] = 0
-        cur[s[::-1]] = 0
+    for seed in seeds:
+        cur[seed] = 0
+        cur[seed[::-1]] = 0
     res.history.append(("SEEDS", seed_len, len(seeds)))
 
     def suffix_support(seq, used):
-        """Observed masses (not yet used by this chain) among the suffixes up to `support_len`
-        residues, and the number of suffixes in the window."""
-        hits, t = [], 0
-        m = water
-        for k in range(1, min(len(seq), support_len) + 1):
-            m += table[seq[-k]]
-            if lo <= m <= hi:
-                t += 1
-                x = observed.match(m)
-                if x is not None and x not in used:
-                    hits.append(x)
-        return hits, t
+        """Observed masses (not yet used by this chain) among the suffixes.
 
-    n = seed_len + 1
-    # chain -> (score, masses it has used). A mass is ONE fragment of the protein, so it may support
-    # a chain once: otherwise a low-complexity chain (ALASALSAL...) whose suffix masses fall on the
-    # same observed masses at every turn grows forever on a handful of them.
-    state = {s: (sc, frozenset()) for s, sc in cur.items()}
-    while state and n <= max_protein:
+        Suffixes up to `support_len` residues, and the number of suffixes in
+        the window.
+        """
+        hits, in_window = [], 0
+        mass = water
+        for depth in range(1, min(len(seq), support_len) + 1):
+            mass += table[seq[-depth]]
+            if lo <= mass <= hi:
+                in_window += 1
+                matched = observed.match(mass)
+                if matched is not None and matched not in used:
+                    hits.append(matched)
+        return hits, in_window
+
+    length = seed_len + 1
+    # chain -> (score, masses it has used). A mass is ONE fragment of the
+    # protein, so it may support a chain once: otherwise a low-complexity
+    # chain (ALASALSAL...) whose suffix masses fall on the same observed
+    # masses at every turn grows forever on a handful of them.
+    state = {seq: (score, frozenset()) for seq, score in cur.items()}
+    while state and length <= max_protein:
         nxt = {}
-        for s, (sc, used) in state.items():
+        for seq, (score, used) in state.items():
             grown = False
-            for a in letters:
-                new = s + a
-                hits, t = suffix_support(new, used)
-                o = len(set(hits))
-                if o >= min_hits and o >= support * t:
-                    if new not in nxt or nxt[new][0] < sc + o:
-                        nxt[new] = (sc + o, used | set(hits))
+            for letter in letters:
+                new = seq + letter
+                hits, in_window = suffix_support(new, used)
+                n_observed = len(set(hits))
+                if (n_observed >= min_hits
+                        and n_observed >= support * in_window):
+                    if new not in nxt or nxt[new][0] < score + n_observed:
+                        nxt[new] = (score + n_observed, used | set(hits))
                     grown = True
-            if not grown and len(s) >= min_contig:
-                res.contigs.append((canon(s), sc))
+            if not grown and len(seq) >= min_contig:
+                res.contigs.append((canon(seq), score))
         if len(nxt) > beam:
             res.converged = False
             res.reason = f"beam of {beam} reached"
-            nxt = dict(sorted(nxt.items(), key=lambda kv: -kv[1][0])[:beam])
-        res.history.append(("EXTEND", n, len(nxt)))
+            nxt = dict(sorted(nxt.items(), key=_by_score_descending)[:beam])
+        res.history.append(("EXTEND", length, len(nxt)))
         state = nxt
-        n += 1
+        length += 1
     best = {}
-    for s, sc in res.contigs:
-        best[s] = max(best.get(s, -1), sc)
-    res.contigs = sorted(best.items(), key=lambda cs: (-cs[1], -len(cs[0])))
+    for seq, score in res.contigs:
+        best[seq] = max(best.get(seq, -1), score)
+    res.contigs = sorted(best.items(), key=_by_score_then_length)
     return res
 
 
-def run_modern(observed: Observed, table=MASSES, water=H2O, lo=350.0, hi=6000.0, seed_len=4,
-               support=0.6, support_len=12, beam=5000, min_contig=6, max_protein=3000) -> ModernResult:
+def run_modern(observed: Observed, table=MASSES, water=H2O, lo=350.0,
+               hi=6000.0, seed_len=4, support=0.6, support_len=12,
+               beam=5000, min_contig=6, max_protein=3000) -> ModernResult:
     res = ModernResult()
     letters = sorted(table)
-    mass = lambda s: sum(table[a] for a in s) + water
 
-    def seen(m):
-        return m < lo or m > hi or observed.contains(m)
+    def mass_of(seq):
+        return sum(table[residue] for residue in seq) + water
 
-    # MASFRG with the window: compositions whose mass is observed, or cannot be.
-    comps = {n: {c for c in combinations_with_replacement(letters, n) if seen(mass(c))}
-             for n in range(1, seed_len + 1)}
-    for n in comps:
-        res.history.append(("MASFRG", n, len(comps[n])))
+    def seen(mass):
+        return mass < lo or mass > hi or observed.contains(mass)
+
+    # MASFRG with the window: compositions whose mass is observed, or cannot
+    # be.
+    comps = {
+        length: {comp
+                 for comp in combinations_with_replacement(letters, length)
+                 if seen(mass_of(comp))}
+        for length in range(1, seed_len + 1)
+    }
+    for length in comps:
+        res.history.append(("MASFRG", length, len(comps[length])))
     comps = prune(comps, 2)
     seqs = cq(comps)
-    for n in seqs:
-        res.history.append(("CQ", n, len(seqs[n])))
+    for length in seqs:
+        res.history.append(("CQ", length, len(seqs[length])))
 
     def score(seq):
-        """(observed, in-window) over the suffixes of `seq` up to `support_len` residues."""
-        o = t = 0
-        m = water
-        for k in range(1, min(len(seq), support_len) + 1):
-            m += table[seq[-k]]
-            if lo <= m <= hi:
-                t += 1
-                o += observed.contains(m)
-        return o, t
+        """(observed, in-window) over the suffixes of `seq`.
+
+        Suffixes up to `support_len` residues.
+        """
+        n_observed = in_window = 0
+        mass = water
+        for depth in range(1, min(len(seq), support_len) + 1):
+            mass += table[seq[-depth]]
+            if lo <= mass <= hi:
+                in_window += 1
+                n_observed += observed.contains(mass)
+        return n_observed, in_window
 
     def accept(seq):
-        o, t = score(seq)
-        return t == 0 or o >= support * t
+        n_observed, in_window = score(seq)
+        return in_window == 0 or n_observed >= support * in_window
 
     cur = seqs[seed_len]
-    # Seeds whose own mass is in the window but unobserved carry no evidence: drop them.
-    cur = {s for s in cur if seen(mass(s))}
+    # Seeds whose own mass is in the window but unobserved carry no evidence:
+    # drop them.
+    cur = {seq for seq in cur if seen(mass_of(seq))}
     best = {}
-    n = seed_len + 1
-    while cur and n <= max_protein:
-        oriented = cur | {s[::-1] for s in cur}
+    length = seed_len + 1
+    while cur and length <= max_protein:
+        oriented = cur | {seq[::-1] for seq in cur}
         by_head = {}
-        for t in oriented:
-            by_head.setdefault(t[:-1], []).append(t)
+        for tail in oriented:
+            by_head.setdefault(tail[:-1], []).append(tail)
         kept, used = {}, set()
-        for s in oriented:
-            for t in by_head.get(s[1:], ()):
-                new = s + t[-1]
+        for head in oriented:
+            for tail in by_head.get(head[1:], ()):
+                new = head + tail[-1]
                 if accept(new):
-                    c = canon(new)
-                    o, _ = score(new)
+                    key = canon(new)
+                    n_observed, _ = score(new)
                     # carry the support accumulated along the chain
-                    kept[c] = max(kept.get(c, 0), best.get(canon(s), 0) + o)
-                    used.add(canon(s))
-                    used.add(canon(t))
-        for s in cur - used:
-            if len(s) >= min_contig:
-                res.contigs.append((s, best.get(s, 0)))
+                    kept[key] = max(kept.get(key, 0),
+                                    best.get(canon(head), 0) + n_observed)
+                    used.add(canon(head))
+                    used.add(canon(tail))
+        for seq in cur - used:
+            if len(seq) >= min_contig:
+                res.contigs.append((seq, best.get(seq, 0)))
         if len(kept) > beam:
             res.converged = False
-            res.reason = f"beam of {beam} reached at length {n}"
-            kept = dict(sorted(kept.items(), key=lambda kv: -kv[1])[:beam])
+            res.reason = f"beam of {beam} reached at length {length}"
+            kept = dict(sorted(kept.items(),
+                               key=_by_value_descending)[:beam])
         best = kept
         cur = set(kept)
-        res.history.append(("OVERLAP", n, len(cur)))
-        n += 1
-    res.contigs.sort(key=lambda cs: (-len(cs[0]), -cs[1]))
+        res.history.append(("OVERLAP", length, len(cur)))
+        length += 1
+    res.contigs.sort(key=_by_length_then_score)
     return res

@@ -17,7 +17,8 @@ uv run masspec reproduce       # the paper's insulin experiment
 uv run masspec simulate SEQ_OR_FASTA --out masses.txt
 uv run masspec run masses.txt --ppm 9 --truth SEQ_OR_FASTA
 uv run masspec run run.mzML --ppm 9 --truth SEQ_OR_FASTA
-uv run pytest
+uv run pytest                  # includes the style check below
+uv run ruff check .            # PEP 8, 79 columns
 ```
 
 ## The 1970 method (`mspec.py`)
