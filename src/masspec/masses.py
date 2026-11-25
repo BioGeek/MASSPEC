@@ -36,13 +36,15 @@ _FREE_1970 = {
     "P": 115.06327, "Q": 146.06907, "R": 174.11158, "S": 105.04254,
     "T": 119.05818, "V": 117.07891, "W": 188.09489,
 }
-# W is as PRINTED, 188.09489, although free tryptophan weighs 204.0899
-# (C11H12N2O2): the paper's own counts need it. With the true value, W's
-# residue (186.079) sits within 0.02 of the dipeptide G+E (186.064), so every
-# "GE" in insulin also reads as a W: the lists come out at 17 single residues
-# and 71 dipeptide compositions instead of the paper's 16 and 66, and a second
-# B chain with "W" for "EG" survives. With the printed value both disappear.
-# Insulin has no tryptophan, so the misprint was invisible to its authors.
+# W is as PRINTED, 188.09489, which is one oxygen short: C11H12N2O, as if
+# the residue had been given H2 rather than H2O. Free tryptophan (C11H12N2O2)
+# weighs 204.0899, but the paper's own counts need the printed value. With
+# the true value, W's residue (186.079) sits within 0.02 of the dipeptide G+E
+# (186.064), so every "GE" in insulin also reads as a W: the lists come out at
+# 17 single residues and 71 dipeptide compositions instead of the paper's 16
+# and 66, and a second B chain with "W" for "EG" survives. With the printed
+# value both disappear.
+# Insulin has no tryptophan, so the error was invisible to its authors.
 # Not rounded: the paper computes in free-acid masses (sum minus water per
 # bond), so rounding each residue would put the last digit off by one.
 MASSES_1970 = {

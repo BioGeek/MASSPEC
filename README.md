@@ -62,10 +62,11 @@ A sequence and its reverse are one entry: masses carry no direction.
 
 Three things had to be decided:
 
-* **The tryptophan mass.** Fig. 2 prints free tryptophan as 188.09489; it is 204.0899. With the true
-  value W sits within 0.02 of G+E, the counts become 17 / 71 / 208, and a second B chain with "W" for
-  "EG" survives. With the printed value everything matches, so the program evidently ran on it.
-  Insulin has no tryptophan, which is why nobody noticed.
+* **The tryptophan mass.** Fig. 2 prints free tryptophan as 188.09489, one oxygen short: that is
+  C11H12N2O, as if the residue had been given H2 rather than H2O. Free tryptophan (C11H12N2O2)
+  weighs 204.0899. With the true value W sits within 0.02 of G+E, the counts become 17 / 71 / 208,
+  and a second B chain with "W" for "EG" survives. With the printed value everything matches, so
+  the program evidently ran on it. Insulin has no tryptophan, which is why nobody noticed.
 * **WEED is off by default.** The paper says the dipeptide list after CQ is "identical with the
   previous list", i.e. CQ ran on PRUNE's output; with WEED the counts are 170 and 55 instead of 172
   and 56. `run(use_weed=True)` turns it on.

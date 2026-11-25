@@ -128,10 +128,11 @@ weighs their sum minus one water per peptide bond, which is the same as the sum
 of RESIDUE masses plus one water. Below, the paper's values beside present-day
 ones (free amino acid = residue + water).
 
-One entry is wrong in the paper: tryptophan is printed as 188.09489, but free
-tryptophan (C11H12N2O2) weighs 204.0899. The program evidently ran on the
-printed value, because the counts in Figs. 6-8 are only reproduced with it (see
-below). Insulin has no tryptophan, so the slip never showed.
+One entry is wrong in the paper: tryptophan is printed as 188.09489, one
+oxygen short. That is C11H12N2O, as if the residue had been given H2 rather
+than H2O; free tryptophan (C11H12N2O2) weighs 204.0899. The program evidently
+ran on the printed value, because the counts in Figs. 6-8 are only reproduced
+with it (see below). Insulin has no tryptophan, so the slip never showed.
 """)
 
 add_code(r"""
@@ -650,7 +651,7 @@ plt.show()
 """)
 
 add_markdown(r"""
-## The tryptophan misprint, demonstrated
+## The tryptophan error, demonstrated
 
 Run the same lookup with the true tryptophan mass, and W (residue 186.079)
 falls within 0.02 of the dipeptide G+E (186.064). Every "EG" in insulin then
