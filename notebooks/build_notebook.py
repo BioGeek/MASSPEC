@@ -3,7 +3,7 @@
     uv sync --group notebook
     uv run python notebooks/build_notebook.py
 
-The last section reads the real run from the copy packaged with the code
+The real-data sections read the runs from the copies packaged with the code
 (masspec.example), so the whole notebook runs anywhere, Colab included.
 
 The notebook's cells live here, as plain strings, so a change to the
@@ -784,7 +784,7 @@ measure mass to a few ppm, far better than the ±0.01 a.m.u. the paper asked
 for. Does the method work on what they produce? The rest of this notebook asks
 that with the rest of the package: `simulate.py` makes the mass list of a
 present-day experiment, `modern.py` adapts the reconstruction to it, and the
-last section runs it on a real one.
+last sections run it on real ones.
 
 ### What present-day data looks like
 
@@ -1032,6 +1032,186 @@ peptides that tile the protein once.
 So the method would work on present-day instruments, but only on an experiment
 designed for it: a near-random, deliberately partial digest, with the short
 fragments kept. A standard proteomics or HDX run is not that experiment.
+
+### Partial acid hydrolysis
+
+The digest the paper had in mind was partial acid hydrolysis, not pepsin. Two
+public deposits come close to it: horse myoglobin (153 residues) hydrolysed in
+hydrochloric acid in a microwave oven (microwave-assisted acid hydrolysis),
+then LC-MS/MS on an Orbitrap, both made for *de novo* protein sequencing from
+MS/MS.
+
+* [PXD003804][pxd003804] (Savidor et al., *MCP* 2017, [doi][dips]): 6 M HCl
+  for 4 min; Q Exactive, MS1 scans from 300 m/z; raw file 0.8 GB.
+* [PXD030203][pxd030203] (Mai et al., *Anal. Chem.* 2022, [doi][mucs]):
+  microwave HCl, beside proteinase K and papain; Orbitrap Fusion Lumos, MS1
+  scans from 350 m/z; raw file 2.1 GB.
+
+The raw files are large, but both deposits include PEAKS's *de novo* reading of
+every MS/MS spectrum. The package carries that for one run of each:
+every distinct peptide read with an average local confidence of 50% or more,
+with its precursor's measured mass (`masspec.example.acid_hydrolysates()`;
+`scripts/package_acid_hydrolysis.py` writes it from the deposits).
+
+Here, unlike the pepsin run above, the masses are filtered with the answer in
+hand: only the reads that are exact, unmodified stretches of horse myoglobin
+are kept. It is the best case these runs can give MASSPEC: every mass a real
+fragment, and no noise. Beside them, `simulate()`'s dilute-acid hydrolysate of
+the same protein, with the same 350 Da floor and a fifth of the fragments
+missed.
+
+[pxd003804]: https://www.ebi.ac.uk/pride/archive/projects/PXD003804
+[pxd030203]: https://www.ebi.ac.uk/pride/archive/projects/PXD030203
+[dips]: https://doi.org/10.1074/mcp.O116.065417
+[mucs]: https://doi.org/10.1021/acs.analchem.1c03718
+""")
+
+add_code(r"""
+from masspec.example import acid_hydrolysates
+from masspec.masses import normalise
+from masspec.masses import peptide_mass as modern_mass
+
+
+def stretches(hydrolysate):
+    # each distinct exact, unmodified stretch of myoglobin in the
+    # hydrolysate, with the measured mass of the read that found it
+    found = {}
+    for read in hydrolysate.reads:
+        peptide = normalise(read.peptide)
+        if "(" not in peptide and peptide in hydrolysate.myoglobin:
+            found.setdefault(peptide, read.mass)
+    return found
+
+
+hydrolysates = acid_hydrolysates()
+horse = hydrolysates[0].myoglobin
+acid_digest = simulate(horse, enzyme="acid", ppm=3.0, dropout=0.2,
+                       alkylated=False, seed=0)
+simulated_short = sum(1 for _, _, peptide, _ in acid_digest.peptides
+                      if modern_mass(peptide) < 500)
+print(f"{'':<22}{'reads':>7}{'myoglobin':>11}{'per residue':>13}"
+      f"{'starts':>9}{'shortest':>10}{'< 500 Da':>10}")
+lengths_by_source = {}
+for hydrolysate in hydrolysates:
+    found = stretches(hydrolysate)
+    starts = {horse.find(peptide) for peptide in found}
+    lengths_by_source[hydrolysate.accession] = [
+        len(peptide) for peptide in found
+    ]
+    print(f"{hydrolysate.accession:<22}{len(hydrolysate.reads):>7}"
+          f"{len(found):>11}"
+          f"{len(found) / len(horse):>13.1f}{len(starts):>9}"
+          f"{min(map(len, found)):>10}"
+          f"{sum(mass < 500 for mass in found.values()):>10}")
+lengths_by_source["simulated acid"] = [
+    end - start + 1 for start, end, _, _ in acid_digest.peptides
+]
+print(f"{'simulated acid':<22}{'':>7}{len(acid_digest.peptides):>11}"
+      f"{len(acid_digest.peptides) / len(horse):>13.1f}{'':>9}"
+      f"{min(lengths_by_source['simulated acid']):>10}"
+      f"{simulated_short:>10}")
+
+figure, axes = plt.subplots(figsize=(8, 3.4))
+shown = range(1, 26)
+for (source, lengths), color in zip(lengths_by_source.items(),
+                                    ("#2563eb", "#ea580c", "#0d9488")):
+    axes.plot(shown, [lengths.count(length) for length in shown],
+              marker="o", markersize=4, lw=2, color=color, label=source)
+axes.set_xlabel("fragment length (residues)")
+axes.set_ylabel("fragments")
+axes.set_title("Horse myoglobin: acid hydrolysates, real and simulated")
+axes.legend(frameon=False)
+plt.show()
+""")
+
+add_markdown(r"""
+On the paper's main need, these runs deliver. The HDX run held about one
+myoglobin fragment per residue; these hold five to seven, about what
+Dayhoff and Eck's insulin problem had (302 masses for 51 residues), and
+fragments start at 129 and 144 of the protein's 153 residues. Acid really does
+break the chain near-randomly.
+
+The short end is still missing. No fragment shorter than three residues was
+read, and only about twenty lighter than 500 Da, where the simulated
+hydrolysate, which already loses everything below 350 Da, has 163. Three things
+remove them: the MS1 scans start at 300 or 350 m/z; the cleanup (solid-phase
+extraction) and the C18 column lose small polar peptides; and the instrument
+chooses multiply charged ions for MS/MS, so a singly charged tripeptide is
+rarely fragmented and never read. The last point means these lists undercount
+what the MS1 scans saw.
+
+What does MASSPEC make of them? First as deposited. Then with the fragments
+a run with a low m/z limit would add: every fragment of two to four residues,
+with 1.5 ppm of mass error, all of them or with a fifth missed (three draws
+each). Those added fragments are made up from the known sequence, so the second
+part is a "what if", not a result.
+""")
+
+add_code(r"""
+def recover(masses, lo):
+    contigs = assemble(
+        run_extend(FastObserved(masses, 3.0), PRESENT_DAY, lo=lo).contigs
+    )
+    scored = score(contigs, horse)
+    return scored["recall_exact"], scored["precision_exact"], contigs
+
+
+def shuffled(protein, seed):
+    residues = list(protein)
+    random.Random(seed).shuffle(residues)
+    return "".join(residues)
+
+
+short_fragments = sorted({horse[start:start + length]
+                          for length in (2, 3, 4)
+                          for start in range(len(horse) - length + 1)})
+print(f"fragments of 2-4 residues in horse myoglobin: "
+      f"{len(short_fragments)}\n")
+print(f"{'':<11}{'as deposited':>15}{'+ short, all':>15}"
+      f"{'+ short, 20% missed':>22}")
+by_chance = {}
+for hydrolysate in hydrolysates:
+    measured_masses = sorted(stretches(hydrolysate).values())
+    recall, precision, contigs = recover(measured_masses, lo=350.0)
+    by_chance[hydrolysate.accession] = max(
+        score(contigs, shuffled(horse, seed))["recall_exact"]
+        for seed in range(10)
+    )
+    cells = [(recall, precision)]
+    for missed in (0.0, 0.2):
+        draws = []
+        for seed in (0, 1, 2):
+            generator = random.Random(seed)
+            added = [modern_mass(peptide)
+                     * (1 + generator.gauss(0, 1.5e-6))
+                     for peptide in short_fragments
+                     if generator.random() >= missed]
+            draws.append(recover(measured_masses + added, lo=150.0)[:2])
+        cells.append(tuple(sum(values) / 3 for values in zip(*draws)))
+    widths = (15, 15, 22)
+    print(f"{hydrolysate.accession:<11}" + "".join(
+        f"{f'{recall:.0%} / {precision:.0%}':>{width}}"
+        for (recall, precision), width in zip(cells, widths)))
+print("\n(recall / precision: myoglobin residues recovered / reported "
+      "residues that are right)")
+print("as deposited, the same contigs against ten shuffled myoglobins: "
+      + ", ".join(f"{accession} up to {recall:.0%}"
+                  for accession, recall in by_chance.items()))
+""")
+
+add_markdown(r"""
+As deposited, little more than chance (6-7% of the protein, against up to 4%
+on shuffled myoglobin), even though every mass is a real myoglobin fragment.
+With the short fragments added, 41% and 51% of the protein comes back, from
+data that are otherwise exactly as deposited. Missing a fifth of those short
+fragments costs nearly half of that gain, so a real run would have to see them
+reliably.
+
+So the experiment MASSPEC needs is a partial acid hydrolysate like these two,
+measured differently: an MS1 range down to about 100 m/z, no cleanup step that
+drops small polar peptides (or a column that retains them, such as HILIC),
+and singly charged ions kept. No public deposit found so far was measured
+that way.
 """)
 
 add_markdown(r"""

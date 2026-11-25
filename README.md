@@ -196,6 +196,43 @@ better? Only **if the experiment is designed for it**. The accuracy is there: a 
 calibration. What is missing is the data: a near-random partial digest, with the short fragments
 kept. A standard proteomics or HDX run is not that experiment.
 
+### Partial acid hydrolysis (PXD003804, PXD030203)
+
+The digest the paper had in mind is partial acid hydrolysis. Two PRIDE deposits come close: horse
+myoglobin (153 residues) hydrolysed in HCl in a microwave oven, then LC-MS/MS on an Orbitrap, both
+made for *de novo* protein sequencing from MS/MS:
+[PXD003804](https://www.ebi.ac.uk/pride/archive/projects/PXD003804) (Savidor et al., *MCP* 2017,
+[doi:10.1074/mcp.O116.065417](https://doi.org/10.1074/mcp.O116.065417); 6 M HCl, Q Exactive, MS1
+from 300 m/z) and [PXD030203](https://www.ebi.ac.uk/pride/archive/projects/PXD030203) (Mai et al.,
+*Anal. Chem.* 2022, [doi:10.1021/acs.analchem.1c03718](https://doi.org/10.1021/acs.analchem.1c03718);
+Orbitrap Fusion Lumos, MS1 from 350 m/z). Both deposits include PEAKS's *de novo* reading of every MS/MS
+spectrum. The peptides read with an average local confidence of 50% or more, with their measured
+precursor masses, ship with the package (`masspec.example.acid_hydrolysates()`, written by
+`scripts/package_acid_hydrolysis.py`). The notebook's section on them gives every number below.
+
+Keeping only the reads that are exact stretches of myoglobin gives MASSPEC its best case: every mass
+a real fragment, no noise.
+
+| | PXD003804 | PXD030203 | simulated acid hydrolysate |
+|---|---|---|---|
+| distinct myoglobin fragments | 739 | 1092 | 2364 |
+| per residue | 4.8 | 7.1 | 15.5 |
+| shortest | 3 residues | 3 residues | 3 residues |
+| lighter than 500 Da | 20 | 25 | 163 |
+| MASSPEC recall / precision, as deposited | 6% / 6% | 7% / 6% | |
+| + every 2-4-residue fragment (1.5 ppm error) | 41% / 30% | 51% / 81% | |
+| + the same with a fifth of them missed | 23% / 13% | 33% / 46% | |
+
+Acid gives what pepsin did not: five to seven fragments per residue, about what the paper's insulin
+problem had, starting at nearly every residue. But the short end is still missing: the MS1 scans
+start at 300 or 350 m/z, the cleanup (solid-phase extraction) and the C18 column lose small polar
+peptides, and the instrument rarely chooses singly charged ions for MS/MS. As deposited, MASSPEC
+recovers 6-7% of the protein, where the same contigs score up to 4% against shuffled myoglobin.
+Adding back the short fragments that a run with a low m/z limit would see (made up from the known
+sequence, so a "what if") brings back about half. The missing experiment is a partial acid
+hydrolysate measured for this: MS1 down to about 100 m/z, no cleanup step that loses small polar
+peptides, and singly charged ions kept.
+
 ## Layout
 
 ```

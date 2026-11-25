@@ -1,5 +1,7 @@
-"""A real run, packaged with the code: PRIDE PXD071026's undeuterated pepsin
-digest of sperm whale myoglobin (run Mn_0s_1, LTQ Orbitrap).
+"""Real runs, packaged with the code: PRIDE PXD071026's undeuterated pepsin
+digest of sperm whale myoglobin (run Mn_0s_1, LTQ Orbitrap), and the de novo
+reads of two partial acid hydrolysates of horse myoglobin (PXD003804,
+PXD030203; `acid_hydrolysates()`).
 
 The raw file is 148 MB and needs ThermoRawFileParser; what the method uses
 from it is one list of neutral masses, 5440 of them, which ships here
@@ -70,4 +72,48 @@ def pxd071026_instanovo():
         scan, mz, charge, peptide, confidence, ppm_error = row.split("\t")
         out.append(Prediction(int(scan), float(mz), int(charge), peptide,
                               float(confidence), float(ppm_error)))
+    return out
+
+
+class Read(NamedTuple):
+    """One distinct peptide as PEAKS read it de novo from MS/MS."""
+
+    peptide: str
+    mass: float
+    charge: int
+    alc: float
+
+
+class Hydrolysate(NamedTuple):
+    """A partial acid hydrolysate: its de novo reads and its protein."""
+
+    accession: str
+    reads: list
+    myoglobin: str
+
+
+_HYDROLYSATES = {
+    "PXD003804": "pxd003804_myo_rep1.tsv",
+    "PXD030203": "pxd030203_apo_mb_maah_1.tsv",
+}
+
+
+def acid_hydrolysates():
+    """Two microwave HCl hydrolysates of horse myoglobin, from PRIDE.
+
+    PXD003804 (Q Exactive) and PXD030203 (Orbitrap Fusion Lumos), one run
+    each. Each read is a distinct peptide PEAKS sequenced de novo with an
+    average local confidence (`alc`) of at least 50%, written as PEAKS
+    writes it (modifications in brackets, I and L as read), with the
+    MEASURED neutral mass of its most confident spectrum's precursor.
+    scripts/package_acid_hydrolysis.py writes them from the deposits.
+    """
+    myoglobin = _sequence("myoglobin_horse_P68082.fasta")
+    out = []
+    for accession, name in _HYDROLYSATES.items():
+        reads = []
+        for row in (_DATA / name).read_text().splitlines()[1:]:
+            peptide, mass, charge, alc = row.split("\t")
+            reads.append(Read(peptide, float(mass), int(charge), float(alc)))
+        out.append(Hydrolysate(accession, reads, myoglobin))
     return out
